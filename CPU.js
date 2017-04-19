@@ -12,7 +12,7 @@ function CPU (mem) {
     this.sp = 0xFD;
     // p register (8 bits)
     // carry, zero, interrupt, decimal, BRK, unused, overflow, negative
-    this.p = 0x34;
+    this.P = 0x34;
     // Accumulation register (8 bits)
     this.A = 0;
     // x register (8 bits)
@@ -114,6 +114,20 @@ function CPU (mem) {
         this.A = operand;
     }
 
+    function AND(operand) {
+        operand &= this.A;
+        setNegative(operand);
+        setZero(operand);
+        this.A = operand;
+    }
+
+    function EOR(operand) {
+        operand ^= this.A;
+        setNegative(operand);
+        setZero(operand);
+        this.A = operand;
+    }
+
     // tick the clock
     function tick() {
         opcode = readNext();
@@ -124,12 +138,12 @@ function CPU (mem) {
             // ORA Ind, X
             case 0x01:
                 this.clock+=6;
-                ORA(IndX());
+                this.ORA(this.IndX());
                 break;  
             // ORA ZP
             case 0x05:
                 this.clock+=3;
-                ORA(ZP());
+                this.ORA(this.ZP());
                 break;
             // ASL ZP
             case 0x06:
@@ -140,7 +154,7 @@ function CPU (mem) {
             // ORA Im
             case 0x09:
                 this.clock+=2;
-                ORA(Im());
+                this.ORA(this.Im());
                 break;
             // ASL Acc
             case 0x0A:
@@ -148,7 +162,7 @@ function CPU (mem) {
             // ORA Abs
             case 0x0D:
                 this.clock+=4;
-                ORA(Abs());
+                this.ORA(this.Abs());
                 break;
             // ASL Abs
             case 0x0E:
@@ -159,12 +173,12 @@ function CPU (mem) {
             // ORA Ind, Y
             case 0x11:
                 this.clock+=6;
-                ORA(IndY());
+                this.ORA(this.IndY());
                 break;
             // ORA Z, X
             case 0x15:
                 this.clock+=4;
-                ORA(ZPX());
+                this.ORA(this.ZPX());
                 break;
             // ASL Z, X
             case 0x16:
@@ -175,12 +189,12 @@ function CPU (mem) {
             // ORA Abs, Y
             case 0x19:
                 this.clock+=4;
-                ORA(AbsY());
+                this.ORA(this.AbsY());
                 break;
             // ORA Abs, X
             case 0x1D:
                 this.clock+=4;
-                ORA(AbsX());
+                this.ORA(this.AbsX());
                 break;
             // ASL Abs, X
             case 0x1E:
@@ -190,12 +204,16 @@ function CPU (mem) {
                 break;
             // AND Ind, X
             case 0x21:
+                this.clock+=6;
+                this.AND(this.IndX());
                 break;
             // BIT ZP
             case 0x24:
                 break;
             // AND ZP
             case 0x25:
+                this.clock+=3;
+                this.AND(this.ZP());
                 break;
             // ROL ZP
             case 0x26:
@@ -205,6 +223,8 @@ function CPU (mem) {
                 break;
             // AND Imm
             case 0x29:
+                this.clock+=2;
+                this.AND(this.Im());
                 break;
             // ROL Acc
             case 0x2A:
@@ -214,6 +234,8 @@ function CPU (mem) {
                 break;
             // AND Abs
             case 0x2D:
+                this.clock+=4;
+                this.AND(this.Abs());
                 break;
             // ROL Abs
             case 0x2E:
@@ -223,9 +245,13 @@ function CPU (mem) {
                 break;
             // AND Ind, Y
             case 0x31:
+                this.clock+=5;
+                this.AND(this.IndY());
                 break;
             // AND Z, X
             case 0x35:
+                this.clock+=4;
+                this.AND(this.ZPX());
                 break;
             // ROL Z, X
             case 0x36:
@@ -235,9 +261,13 @@ function CPU (mem) {
                 break;
             // AND Abs, Y
             case 0x39:
+                this.clock+=4;
+                this.AND(this.AbsY());
                 break;
             // AND Abs, X
             case 0x3D:
+                this.clock+=4;
+                this.AND(this.AbsX());
                 break;
             // ROL Abs, X
             case 0x3E:
@@ -247,9 +277,13 @@ function CPU (mem) {
                 break;
             // EOR Ind, X
             case 0x41:
+                this.clock+=4;
+                this.EOR(this.IndX());
                 break;
             // EOR ZP
             case 0x45:
+                this.clock+=3;
+                this.EOR(this.ZP());
                 break;
             // LSR ZP
             case 0x46:
@@ -259,6 +293,8 @@ function CPU (mem) {
                 break;
             // EOR Imm
             case 0x49:
+                this.clock+=2;
+                this.EOR(this.Im());
                 break;
             // LSR Acc
             case 0x4A:
@@ -268,6 +304,8 @@ function CPU (mem) {
                 break;
             // EOR Abs
             case 0x4D:
+                this.clock+=4;
+                this.EOR(this.Abs());
                 break;
             // LSR Abs
             case 0x4E:
@@ -277,9 +315,13 @@ function CPU (mem) {
                 break;
             // EOR Ind, Y
             case 0x51:
+                this.clock+=5;
+                this.EOR(this.IndY());
                 break;
             // EOR Z, X
             case 0x55:
+                this.clock+=4;
+                this.EOR(this.ZPX());
                 break;
             // LSR Z, X
             case 0x56:
@@ -289,9 +331,13 @@ function CPU (mem) {
                 break;  
             // EOR Abs, Y
             case 0x59:
+                this.clock+=4;
+                this.EOR(this.AbsY());
                 break;
             // EOR Abs, X
             case 0x5D:
+                this.clock+=4;
+                this.EOR(this.AbsX());
                 break;
             // LSR ABs, X
             case 0x5E:
