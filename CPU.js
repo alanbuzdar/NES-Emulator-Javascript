@@ -14,27 +14,122 @@ function CPU (mem) {
     // carry, zero, interrupt, decimal, BRK, unused, overflow, negative
     this.p = 0x34;
     // Accumulation register (8 bits)
-    this.x = 0;
+    this.A = 0;
     // x register (8 bits)
-    this.y = 0;
+    this.X = 0;
     // y register (8 bits)
-    this.z = 0;
+    this.Y = 0;
     // clock
     this.clock = 0;
 
+    // Addressing Modes
+    // Immediate
+    function Im() {
+        return readNext();
+    }
+
+    // (Indirect, X)
+    function IndX() {
+        addr = this.memory.read((readNext() + this.X)%256);
+        lowerNib = this.memory.read(addr);
+        higherNib = this.memory.read(addr+1);
+        toRead = (higherNib << 8) || lowerNib;
+        return this.memory.read(toRead); 
+    }
+
+    // (Indirect), Y
+    function IndY() {
+        addr = readNext();
+        lowerNib = this.memory.read(addr);
+        higherNib = this.memory.read(addr+1);
+        toRead = (higherNib << 8) || lowerNib;
+        return this.memory.read(toRead + this.Y);
+    }
+
+    // Zero Page
+    function ZP() {
+        return this.memory.read(readNext());
+    }
+
+    // Zero Page, X
+    function ZPX() {
+        return this.memory.read((readNext() + this.X)%256);
+    }
+
+    // Zero Page, Y
+    function ZPY() {
+        return this.memory.read((readNext() + this.Y)%256);
+    }
+
+    // Absolute
+    function Abs() {
+        lowerNib = readNext();
+        higherNib = readNext();
+        addr = (higherNib << 8) | lowerNib;
+        return this.memory.read(addr);
+    }
+
+    // Absolute X
+    function AbsX() {
+        lowerNib = readNext();
+        higherNib = readNext();
+        addr = (higherNib << 8) | lowerNib;
+        return this.memory.read(addr+this.X);
+    }
+
+    // Absolute Y
+    function AbsY() {
+        lowerNib = readNext();
+        higherNib = readNext();
+        addr = (higherNib << 8) | lowerNib;
+        return this.memory.read(addr+this.Y);  
+     }
+
+     // Fetch next byte
+    function readNext() {
+        return this.memory.get(this.pc++);
+    }
+
+    // Sets Zero Flag based on operand
+    function setZero(operand) {
+        if(operand == 0)
+            this.P |= 0b00000010;
+        else
+            this.P &= 0b11111101;
+    }
+
+    // Sets Negative Flag based on operand
+    function setNegative(operand) {
+        if(operand > 0x7F)
+            this.P |= 0b10000000;
+        else
+            this.P &= 0b01111111;
+    }
+
+    // Operations
+    function ORA(operand) {
+        operand |= this.A;
+        setNegative(operand);
+        setZero(operand);
+        this.A = operand;
+    }
+
     // tick the clock
     function tick() {
-        opcode = this.memory.ROM[pc] + (this.memory.ROM[pc+1] << 8);
-
+        opcode = readNext();
         switch (opcode) {
             // BRK
             case 0x00:
                 break;
             // ORA Ind, X
             case 0x01:
+                this.clock+=6;
+                ORA(IndX());
                 break;  
             // ORA ZP
             case 0x05:
+                this.clock+=3;
+                ORA(ZP());
                 break;
             // ASL ZP
             case 0x06:
@@ -44,12 +139,16 @@ function CPU (mem) {
                 break;
             // ORA Im
             case 0x09:
+                this.clock+=2;
+                ORA(Im());
                 break;
             // ASL Acc
             case 0x0A:
                 break;
             // ORA Abs
             case 0x0D:
+                this.clock+=4;
+                ORA(Abs());
                 break;
             // ASL Abs
             case 0x0E:
@@ -59,9 +158,13 @@ function CPU (mem) {
                 break;
             // ORA Ind, Y
             case 0x11:
+                this.clock+=6;
+                ORA(IndY());
                 break;
             // ORA Z, X
             case 0x15:
+                this.clock+=4;
+                ORA(ZPX());
                 break;
             // ASL Z, X
             case 0x16:
@@ -71,9 +174,13 @@ function CPU (mem) {
                 break;
             // ORA Abs, Y
             case 0x19:
+                this.clock+=4;
+                ORA(AbsY());
                 break;
             // ORA Abs, X
             case 0x1D:
+                this.clock+=4;
+                ORA(AbsX());
                 break;
             // ASL Abs, X
             case 0x1E:

@@ -14,4 +14,9 @@ function Memory(rom) {
     this.RAM = Array(2048);
     this.ROM = rom;
 
+    function read(address) {
+        if(address < 0x0800)
+            return this.RAM[address];
+    }
+
 }
