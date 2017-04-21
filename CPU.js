@@ -114,20 +114,20 @@ function CPU (mem) {
 
     // Bitwise Operations
     function AND(addr) {
-        operand = this.mem.read(addr);
+        operand = this.memory.read(addr);
         operand &= this.A;
-        setNegative(operand);
-        setZero(operand);
+        this.setNegative(operand);
+        this.setZero(operand);
         this.A = operand;
     }
 
     function ASL(addr) {
         // -1 = Accumulator
         operand = addr == -1 ? this.A : this.memory.read(addr);
-        setCarry(operand)
+        this.setCarry(operand)
         operand = (operand<<1)&0xFF;
-        setNegative(operand);
-        setZero(operand);
+        this.setNegative(operand);
+        this.setZero(operand);
         if(addr == -1)
             this.A = operand;
         else
@@ -135,18 +135,18 @@ function CPU (mem) {
     }
 
     function BIT(addr) {
-        operand = this.mem.read(addr);
-        setNegative(operand);
+        operand = this.memory.read(addr);
+        this.setNegative(operand);
         this.overflow = (operand>>6)&1;
         operand &= this.A;
-        setZero(operand);
+        this.setZero(operand);
     }
 
     function EOR(addr) {
-        operand = this.mem.read(addr);
+        operand = this.memory.read(addr);
         operand ^= this.A;
-        setNegative(operand);
-        setZero(operand);
+        this.setNegative(operand);
+        this.setZero(operand);
         this.A = operand;
     }
 
@@ -156,8 +156,8 @@ function CPU (mem) {
         operand &= 0xFF;
         this.carry = operand&1;
         operand >>= 1;
-        setNegative(operand);
-        setZero(operand);
+        this.setNegative(operand);
+        this.setZero(operand);
         if(addr == -1)
             this.A = operand;
         else
@@ -165,10 +165,10 @@ function CPU (mem) {
     }
 
     function ORA(addr) {
-        operand = this.mem.read(addr);
+        operand = this.memory.read(addr);
         operand |= this.A;
-        setNegative(operand);
-        setZero(operand);
+        this.setNegative(operand);
+        this.setZero(operand);
         this.A = operand;
     }
 
@@ -178,8 +178,8 @@ function CPU (mem) {
         this.carry = (operand>>7)&1;
         operand = (operand<<1)&0xFF;
         operand |= c;
-        setNegative(operand);
-        setZero(operand);
+        this.setNegative(operand);
+        this.setZero(operand);
         if(operand == -1)
             this.A = operand;
         else
@@ -192,8 +192,8 @@ function CPU (mem) {
         this.carry = operand&1;
         operand = operand>>1;
         operand |= c;
-        setNegative(operand);
-        setZero(operand);
+        this.setNegative(operand);
+        this.setZero(operand);
         if(addr == -1)
             this.A = operand;
         else
@@ -202,23 +202,73 @@ function CPU (mem) {
 
     // Arithmetic Operations
     function ADC(addr) {
-        operand = this.mem.read(addr);
+        operand = this.memory.read(addr);
         operand = this.A + operand + this.carry;
-        setCarry(operand);
+        this.setCarry(operand);
         operand &= 0xFF;
-        setNegative(operand);
-        setZero(operand);
+        this.setNegative(operand);
+        this.setZero(operand);
         this.A = operand;
     }
 
     function DEC(addr) {
-        operand = this.mem.read(addr);
+        operand = this.memory.read(addr);
         operand = (operand-1)&0xFF;
-        setNegative(operand);
-        setZero(operand);
+        this.setNegative(operand);
+        this.setZero(operand);
         this.memory.write(addr, operand);
     }
 
+    function DEX() {
+        operand = this.X;
+        operand = (operand-1)&0xFF;
+        this.setNegative(operand);
+        this.setZero(operand);
+        this.X = operand;
+    }
+
+    function DEY() {
+        operand = this.Y;
+        operand = (operand-1)&0xFF;
+        this.setNegative(operand);
+        this.setZero(operand);
+        this.Y = operand;
+    }
+
+    function INC(addr) {
+        operand = this.memory.read(addr);
+        operand = (operand+1)&0xFF;
+        this.setNegative(operand);
+        this.setZero(operand);
+        this.memory.write(addr, operand);
+    }
+
+    function INX() {
+        operand = this.X;
+        operand = (operand+1)&0xFF;
+        this.setNegative(operand);
+        this.setZero(operand);
+        this.X = operand;
+    }
+
+    function INY() {
+        operand = this.Y;
+        operand = (operand+1)&0xFF;
+        this.setNegative(operand);
+        this.setZero(operand);
+        this.Y = operand;
+    }
+
+    function SBC(addr) {
+        operand = this.memory.read(addr);
+        operand = this.A - operand - (1-this.carry);
+        this.setNegative(operand);
+        this.setZero(operand)
+        this.carry = operand < 0 ? 0:1;
+        this.overflow =  ((((this.A^operand)&0x80)!=0 && ((this.A^this.memory.read(addr))&0x80)!=0)?1:0);
+        operand &= 0xFF;
+        this.A = operand;
+    }
 
     // tick the clock
     function tick() {
@@ -684,15 +734,21 @@ function CPU (mem) {
                 break;
             // DEC Z
             case 0xC6:
+                this.clock+=5;
+                this.DEC(this.ZP());
                 break;
             // INY
             case 0xC8:
+                this.clock+=2;
+                this.INY();
                 break;
             // CMP Imm 
             case 0xC9:
                 break;
             // DEX
             case 0xCA:
+                this.clock+=2;
+                this.DEX();
                 break;
             // CPY Abs 
             case 0xCC:
@@ -702,6 +758,8 @@ function CPU (mem) {
                 break;
             // DEC Abs 
             case 0xCE:
+                this.clock+=6;
+                this.DEC(this.Abs());
                 break;
             // BNE
             case 0xD0:
@@ -714,6 +772,8 @@ function CPU (mem) {
                 break;
             // DEC Z, X 
             case 0xD6:
+                this.clock+=6;
+                this.DEC(this.ZPX());
                 break;
             // CLD 
             case 0xD8:
@@ -726,27 +786,39 @@ function CPU (mem) {
                 break;
             // DEC Abs, X
             case 0xDE:
+                this.clock+=7;
+                this.DEC(this.AbsX());
                 break;
             // CPX Imm 
             case 0xE0:
                 break;
             // SBC Ind, X 
             case 0xE1:
+                this.clock+=6;
+                this.SBC(this.IndX());
                 break;
             // CPX 	Z 
             case 0xE4:
                 break;
             // SBC 	Z 
             case 0xE5:
+                this.clock+=3;
+                this.SBC(this.ZP());
                 break;
             // INC Z 
             case 0xE6:
+                this.clock+=5;
+                this.INC(this.ZP());
                 break;
             // INX
             case 0xE8:
+                this.clock+=2;
+                this.INX();
                 break;
             // SBC Imm 
             case 0xE9:
+                this.clock+=2;
+                this.SBC(this.Im());
                 break;
             // NOP
             case 0xEA:
@@ -756,33 +828,49 @@ function CPU (mem) {
                 break;
             // SBC Abs 
             case 0xED:
+                this.clock+=4;
+                this.SBC(this.Abs());
                 break;
             // INC Abs 
             case 0xEE:
+                this.clock+=6;
+                this.INC(this.Abs());
                 break;
             // BEQ
             case 0xF0:
                 break;
             // SBC Ind, Y
             case 0xF1:
+                this.clock+=5;
+                this.SBC(this.IndY());
                 break;
             // SBC Z, X 
             case 0xF5:
+                this.clock+=4;
+                this.SBC(this.ZPX());
                 break;
             // INC Z, X 
             case 0xF6:
+                this.clock+=6;
+                this.INC(this.ZPX());
                 break;
             // SED
             case 0xF8:
                 break;
             // SBC Abs, Y 
             case 0xF9:
+                this.clock+=4;
+                this.SBC(this.AbsY());
                 break;
             // SBC Abs, X 
             case 0xFD:
+                this.clock+=4;
+                this.SBC(this.AbsX());
                 break;
             // INC Abs, X 
             case 0xFE:
+                this.clock+=7;
+                this.INC(this.AbsX());
                 break;
             
         }
