@@ -19,4 +19,9 @@ function Memory(rom) {
             return this.RAM[address];
     }
 
+    function write(address, value) {
+        if(address < 0x0800)
+            this.RAM[address] = value;
+    }
+
 }

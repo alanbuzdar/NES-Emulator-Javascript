@@ -12,7 +12,14 @@ function CPU (mem) {
     this.sp = 0xFD;
     // p register (8 bits)
     // carry, zero, interrupt, decimal, BRK, unused, overflow, negative
-    this.P = 0x34;
+    this.carry = 0;
+    this.zero = 0;
+    this.interrupt = 0;
+    this.decimal = 0;
+    this.BRK = 0;
+    this.overflow = 0;
+    this.negative = 0;
+
     // Accumulation register (8 bits)
     this.A = 0;
     // x register (8 bits)
@@ -92,18 +99,12 @@ function CPU (mem) {
 
     // Sets Zero Flag based on operand
     function setZero(operand) {
-        if(operand == 0)
-            this.P |= 0b00000010;
-        else
-            this.P &= 0b11111101;
+        this.zero = operand == 0 ? 1 : 0;
     }
 
     // Sets Negative Flag based on operand
     function setNegative(operand) {
-        if(operand > 0x7F)
-            this.P |= 0b10000000;
-        else
-            this.P &= 0b01111111;
+        this.negative = operand > 0x7f ? 1 : 0;
     }
 
     // Operations
@@ -128,6 +129,19 @@ function CPU (mem) {
         this.A = operand;
     }
 
+    function ASL(operand) {
+        // -1 = Accumulator
+        temp = operand == -1 ? this.A : this.memory.read(operand);
+        this.carry = (temp>>7)&1;
+        temp = (temp<<1)&255;
+        setNegative(temp);
+        setZero(temp);
+        if(operand == -1)
+            this.A = temp;
+        else
+            this.memory.write(operand, temp);
+    }
+
     // tick the clock
     function tick() {
         opcode = readNext();
@@ -147,6 +161,8 @@ function CPU (mem) {
                 break;
             // ASL ZP
             case 0x06:
+                this.clock+=5;
+                this.ASL(this.ZP());
                 break;
             // PHP
             case 0x08:
@@ -158,6 +174,8 @@ function CPU (mem) {
                 break;
             // ASL Acc
             case 0x0A:
+                this.clock+=2;
+                this.ASL(-1);
                 break;
             // ORA Abs
             case 0x0D:
@@ -166,6 +184,8 @@ function CPU (mem) {
                 break;
             // ASL Abs
             case 0x0E:
+                this.clock+=6;
+                this.ASL(this.Abs());
                 break;
             // BPL
             case 0x10:
@@ -182,6 +202,8 @@ function CPU (mem) {
                 break;
             // ASL Z, X
             case 0x16:
+                this.clock+=6;
+                this.ASL(this.ZPX());
                 break;
             // CLC
             case 0x18:
@@ -198,6 +220,8 @@ function CPU (mem) {
                 break;
             // ASL Abs, X
             case 0x1E:
+                this.clock+=7;
+                this.ASL(this.AbsX());
                 break;
             // JSR
             case 0x20:
