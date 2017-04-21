@@ -125,13 +125,13 @@ function CPU (mem) {
         // -1 = Accumulator
         operand = addr == -1 ? this.A : this.memory.read(addr);
         setCarry(operand)
-        temp = (temp<<1)&0xFF;
-        setNegative(temp);
-        setZero(temp);
+        operand = (operand<<1)&0xFF;
+        setNegative(operand);
+        setZero(operand);
         if(addr == -1)
-            this.A = temp;
+            this.A = operand;
         else
-            this.memory.write(addr, temp);
+            this.memory.write(addr, operand);
     }
 
     function BIT(addr) {
@@ -152,16 +152,16 @@ function CPU (mem) {
 
     function LSR(addr) {
         // -1 = Accumulator
-        temp = addr == -1 ? this.A : this.memory.read(addr);
-        temp &= 0xFF;
-        this.carry = temp&1;
-        temp >>= 1;
-        setNegative(temp);
-        setZero(temp);
+        operand = addr == -1 ? this.A : this.memory.read(addr);
+        operand &= 0xFF;
+        this.carry = operand&1;
+        operand >>= 1;
+        setNegative(operand);
+        setZero(operand);
         if(addr == -1)
-            this.A = temp;
+            this.A = operand;
         else
-            this.memory.write(addr, temp);
+            this.memory.write(addr, operand);
     }
 
     function ORA(addr) {
@@ -173,42 +173,42 @@ function CPU (mem) {
     }
 
     function ROL(addr) {
-        temp = addr == -1 ? this.A : this.memory.read(addr);
+        operand = addr == -1 ? this.A : this.memory.read(addr);
         c = this.carry;
-        this.carry = (temp>>7)&1;
-        temp = (temp<<1)&0xFF;
-        temp |= c;
-        setNegative(temp);
-        setZero(temp);
+        this.carry = (operand>>7)&1;
+        operand = (operand<<1)&0xFF;
+        operand |= c;
+        setNegative(operand);
+        setZero(operand);
         if(operand == -1)
-            this.A = temp;
+            this.A = operand;
         else
-            this.memory.write(operand, temp);
+            this.memory.write(addr, operand);
     }
 
     function ROR(addr) {
-        temp = addr == -1 ? this.A : this.memory.read(addr);
+        operand = addr == -1 ? this.A : this.memory.read(addr);
         c = this.carry<<7;
-        this.carry = temp&1;
-        temp = temp>>1;
-        temp |= c;
-        setNegative(temp);
-        setZero(temp);
+        this.carry = operand&1;
+        operand = operand>>1;
+        operand |= c;
+        setNegative(operand);
+        setZero(operand);
         if(addr == -1)
-            this.A = temp;
+            this.A = operand;
         else
-            this.memory.write(addr, temp);
+            this.memory.write(addr, operand);
     }
 
     // Arithmetic Operations
     function ADC(addr) {
         operand = this.mem.read(addr);
-        temp = this.A + operand + this.carry;
-        setCarry(temp);
-        temp &= 0xFF;
-        setNegative(temp);
-        setZero(temp);
-        this.A = temp;
+        operand = this.A + operand + this.carry;
+        setCarry(operand);
+        operand &= 0xFF;
+        setNegative(operand);
+        setZero(operand);
+        this.A = operand;
     }
 
     function DEC(addr) {
