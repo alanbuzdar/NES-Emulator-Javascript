@@ -107,23 +107,9 @@ function CPU (mem) {
         this.negative = operand > 0x7f ? 1 : 0;
     }
 
-    // Operations
-    function ORA(operand) {
-        operand |= this.A;
-        setNegative(operand);
-        setZero(operand);
-        this.A = operand;
-    }
-
+    // Bitwise Operations
     function AND(operand) {
         operand &= this.A;
-        setNegative(operand);
-        setZero(operand);
-        this.A = operand;
-    }
-
-    function EOR(operand) {
-        operand ^= this.A;
         setNegative(operand);
         setZero(operand);
         this.A = operand;
@@ -133,7 +119,70 @@ function CPU (mem) {
         // -1 = Accumulator
         temp = operand == -1 ? this.A : this.memory.read(operand);
         this.carry = (temp>>7)&1;
-        temp = (temp<<1)&255;
+        temp = (temp<<1)&0xFF;
+        setNegative(temp);
+        setZero(temp);
+        if(operand == -1)
+            this.A = temp;
+        else
+            this.memory.write(operand, temp);
+    }
+
+    function BIT(operand) {
+        setNegative(operand);
+        this.overflow = (operand>>6)&1;
+        operand &= this.A;
+        setZero(operand);
+    }
+
+    function EOR(operand) {
+        operand ^= this.A;
+        setNegative(operand);
+        setZero(operand);
+        this.A = operand;
+    }
+
+    function LSR(operand) {
+        // -1 = Accumulator
+        temp = operand == -1 ? this.A : this.memory.read(operand);
+        temp &= 0xFF;
+        this.carry = temp&1;
+        temp >>= 1;
+        setNegative(temp);
+        setZero(temp);
+        if(operand == -1)
+            this.A = temp;
+        else
+            this.memory.write(operand, temp);
+    }
+
+    function ORA(operand) {
+        operand |= this.A;
+        setNegative(operand);
+        setZero(operand);
+        this.A = operand;
+    }
+
+    function ROL(operand) {
+        temp = operand == -1 ? this.A : this.memory.read(operand);
+        c = this.carry;
+        this.carry = (temp>>7)&1;
+        temp = (temp<<1)&0xFF;
+        temp |= c;
+        setNegative(temp);
+        setZero(temp);
+        if(operand == -1)
+            this.A = temp;
+        else
+            this.memory.write(operand, temp);
+    }
+
+    function ROR(operand) {
+        temp = operand == -1 ? this.A : this.memory.read(operand);
+        c = this.carry<<7;
+        this.carry = temp&1;
+        temp = temp>>1;
+        temp |= c;
         setNegative(temp);
         setZero(temp);
         if(operand == -1)
@@ -233,6 +282,8 @@ function CPU (mem) {
                 break;
             // BIT ZP
             case 0x24:
+                this.clock+=3;
+                this.BIT(ZP());
                 break;
             // AND ZP
             case 0x25:
@@ -241,6 +292,8 @@ function CPU (mem) {
                 break;
             // ROL ZP
             case 0x26:
+                this.clock+=5;
+                this.ROL(this.ZP());
                 break;
             // PLP
             case 0x28:
@@ -252,9 +305,13 @@ function CPU (mem) {
                 break;
             // ROL Acc
             case 0x2A:
+                this.clock+=2;
+                this.ROL(-1);
                 break;
             // BIT Abs
             case 0x2C:
+                this.clock+=4;
+                this.BIT(this.Abs());
                 break;
             // AND Abs
             case 0x2D:
@@ -263,6 +320,8 @@ function CPU (mem) {
                 break;
             // ROL Abs
             case 0x2E:
+                this.clock+=6;
+                this.ROL(this.Abs());
                 break;
             // BMI
             case 0x30:
@@ -279,6 +338,8 @@ function CPU (mem) {
                 break;
             // ROL Z, X
             case 0x36:
+                this.clock+=6;
+                this.ROL(this.ZPX());
                 break;
             // SEC
             case 0x38:
@@ -295,6 +356,7 @@ function CPU (mem) {
                 break;
             // ROL Abs, X
             case 0x3E:
+                this.ROL(this.AbsX());
                 break;
             // RTI
             case 0x40:
@@ -311,6 +373,8 @@ function CPU (mem) {
                 break;
             // LSR ZP
             case 0x46:
+                this.clock+=5;
+                this.LSR(this.ZP());
                 break;
             // PHA
             case 0x48:
@@ -322,6 +386,8 @@ function CPU (mem) {
                 break;
             // LSR Acc
             case 0x4A:
+                this.clock+=2;
+                this.LSR(-1);
                 break;
             // JMP Abs
             case 0x4C:
@@ -333,6 +399,8 @@ function CPU (mem) {
                 break;
             // LSR Abs
             case 0x4E:
+                this.clock+=6;
+                this.LSR(this.Abs());
                 break;
             // BVC
             case 0x50:
@@ -349,6 +417,8 @@ function CPU (mem) {
                 break;
             // LSR Z, X
             case 0x56:
+                this.clock+=6;
+                this.LSR(this.ZPX());
                 break;
             // CLI
             case 0x58:
@@ -365,6 +435,8 @@ function CPU (mem) {
                 break;
             // LSR ABs, X
             case 0x5E:
+                this.clock+=7;
+                this.LSR(this.AbsX());
                 break;
             // RTS
             case 0x60:
@@ -377,6 +449,8 @@ function CPU (mem) {
                 break;
             // ROR ZP
             case 0x66:
+                this.clock+=5;
+                this.ROR(this.ZP());
                 break;
             // PLA
             case 0x68:
@@ -386,6 +460,8 @@ function CPU (mem) {
                 break;
             // ROR Acc
             case 0x6A:
+                this.clock+=2;
+                this.ROR(-1);
                 break;
             // JMP Ind
             case 0x6C:
@@ -395,6 +471,8 @@ function CPU (mem) {
                 break;
             // ROR Abs
             case 0x6E:
+                this.clock+=6;
+                this.ROR(this.Abs());
                 break;
             // BVS
             case 0x70:
@@ -407,6 +485,8 @@ function CPU (mem) {
                 break;
             // ROR Z, X
             case 0x76:
+                this.clock+=6;
+                this.ROR(this.ZPX());
                 break;
             // SEI
             case 0x78:
@@ -419,6 +499,8 @@ function CPU (mem) {
                 break;
             // ROR Abs, X
             case 0x7E:
+                this.clock+=7;
+                this.ROR(this.AbsX());
                 break;
             // STA Ind, X
             case 0x81:
