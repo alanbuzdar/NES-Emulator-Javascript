@@ -32,64 +32,65 @@ function CPU (mem) {
     // Addressing Modes
     // Immediate
     function Im() {
-        return readNext();
+        this.pc++;
+        return this.pc;
     }
 
     // (Indirect, X)
     function IndX() {
-        addr = this.memory.read((readNext() + this.X)%256);
+        addr = this.memory.read((this.readNext() + this.X)%256);
         lowerNib = this.memory.read(addr);
         higherNib = this.memory.read(addr+1);
         toRead = (higherNib << 8) || lowerNib;
-        return this.memory.read(toRead); 
+        return toRead; 
     }
 
     // (Indirect), Y
     function IndY() {
-        addr = readNext();
+        addr = this.readNext();
         lowerNib = this.memory.read(addr);
         higherNib = this.memory.read(addr+1);
         toRead = (higherNib << 8) || lowerNib;
-        return this.memory.read(toRead + this.Y);
+        return toRead + this.Y;
     }
 
     // Zero Page
     function ZP() {
-        return this.memory.read(readNext());
+        return this.readNext();
     }
 
     // Zero Page, X
     function ZPX() {
-        return this.memory.read((readNext() + this.X)%256);
+        return (this.readNext() + this.X)%256;
     }
 
     // Zero Page, Y
     function ZPY() {
-        return this.memory.read((readNext() + this.Y)%256);
+        return (this.readNext() + this.Y)%256;
     }
 
     // Absolute
     function Abs() {
-        lowerNib = readNext();
-        higherNib = readNext();
+        lowerNib = this.readNext();
+        higherNib = this.readNext();
         addr = (higherNib << 8) | lowerNib;
-        return this.memory.read(addr);
+        return addr;
     }
 
     // Absolute X
     function AbsX() {
-        lowerNib = readNext();
-        higherNib = readNext();
+        lowerNib = this.readNext();
+        higherNib = this.readNext();
         addr = (higherNib << 8) | lowerNib;
-        return this.memory.read(addr+this.X);
+        return addr+this.X;
     }
 
     // Absolute Y
     function AbsY() {
-        lowerNib = readNext();
-        higherNib = readNext();
+        lowerNib = this.readNext();
+        higherNib = this.readNext();
         addr = (higherNib << 8) | lowerNib;
-        return this.memory.read(addr+this.Y);  
+        return addr+this.Y;  
      }
 
      // Fetch next byte
@@ -107,64 +108,72 @@ function CPU (mem) {
         this.negative = operand > 0x7f ? 1 : 0;
     }
 
+    function setCarry(operand) {
+        this.carry = operand > 0xFF ? 1 : 0;
+    }
+
     // Bitwise Operations
-    function AND(operand) {
+    function AND(addr) {
+        operand = this.mem.read(addr);
         operand &= this.A;
         setNegative(operand);
         setZero(operand);
         this.A = operand;
     }
 
-    function ASL(operand) {
+    function ASL(addr) {
         // -1 = Accumulator
-        temp = operand == -1 ? this.A : this.memory.read(operand);
-        this.carry = (temp>>7)&1;
+        operand = addr == -1 ? this.A : this.memory.read(addr);
+        setCarry(operand)
         temp = (temp<<1)&0xFF;
         setNegative(temp);
         setZero(temp);
-        if(operand == -1)
+        if(addr == -1)
             this.A = temp;
         else
-            this.memory.write(operand, temp);
+            this.memory.write(addr, temp);
     }
 
-    function BIT(operand) {
+    function BIT(addr) {
+        operand = this.mem.read(addr);
         setNegative(operand);
         this.overflow = (operand>>6)&1;
         operand &= this.A;
         setZero(operand);
     }
 
-    function EOR(operand) {
+    function EOR(addr) {
+        operand = this.mem.read(addr);
         operand ^= this.A;
         setNegative(operand);
         setZero(operand);
         this.A = operand;
     }
 
-    function LSR(operand) {
+    function LSR(addr) {
         // -1 = Accumulator
-        temp = operand == -1 ? this.A : this.memory.read(operand);
+        temp = addr == -1 ? this.A : this.memory.read(addr);
         temp &= 0xFF;
         this.carry = temp&1;
         temp >>= 1;
         setNegative(temp);
         setZero(temp);
-        if(operand == -1)
+        if(addr == -1)
             this.A = temp;
         else
-            this.memory.write(operand, temp);
+            this.memory.write(addr, temp);
     }
 
-    function ORA(operand) {
+    function ORA(addr) {
+        operand = this.mem.read(addr);
         operand |= this.A;
         setNegative(operand);
         setZero(operand);
         this.A = operand;
     }
 
-    function ROL(operand) {
-        temp = operand == -1 ? this.A : this.memory.read(operand);
+    function ROL(addr) {
+        temp = addr == -1 ? this.A : this.memory.read(addr);
         c = this.carry;
         this.carry = (temp>>7)&1;
         temp = (temp<<1)&0xFF;
@@ -177,23 +186,43 @@ function CPU (mem) {
             this.memory.write(operand, temp);
     }
 
-    function ROR(operand) {
-        temp = operand == -1 ? this.A : this.memory.read(operand);
+    function ROR(addr) {
+        temp = addr == -1 ? this.A : this.memory.read(addr);
         c = this.carry<<7;
         this.carry = temp&1;
         temp = temp>>1;
         temp |= c;
         setNegative(temp);
         setZero(temp);
-        if(operand == -1)
+        if(addr == -1)
             this.A = temp;
         else
-            this.memory.write(operand, temp);
+            this.memory.write(addr, temp);
     }
+
+    // Arithmetic Operations
+    function ADC(addr) {
+        operand = this.mem.read(addr);
+        temp = this.A + operand + this.carry;
+        setCarry(temp);
+        temp &= 0xFF;
+        setNegative(temp);
+        setZero(temp);
+        this.A = temp;
+    }
+
+    function DEC(addr) {
+        operand = this.mem.read(addr);
+        operand = (operand-1)&0xFF;
+        setNegative(operand);
+        setZero(operand);
+        this.memory.write(addr, operand);
+    }
+
 
     // tick the clock
     function tick() {
-        opcode = readNext();
+        opcode = this.readNext();
         switch (opcode) {
             // BRK
             case 0x00:
@@ -443,9 +472,13 @@ function CPU (mem) {
                 break;
             // ADC Ind, X
             case 0x61:
+                this.clock+=6;
+                this.ADC(this.IndX());
                 break;
             // ADC ZP
             case 0x65:
+                this.clock+=3;
+                this.ADC(this.ZP());
                 break;
             // ROR ZP
             case 0x66:
@@ -457,6 +490,8 @@ function CPU (mem) {
                 break;
             // ADC Imm
             case 0x69:
+                this.clock+=2;
+                this.ADC(this.Im());
                 break;
             // ROR Acc
             case 0x6A:
@@ -468,6 +503,8 @@ function CPU (mem) {
                 break;
             // ADC Abs
             case 0x6D:
+                this.clock+=4;
+                this.ADC(this.Abs());
                 break;
             // ROR Abs
             case 0x6E:
@@ -479,9 +516,13 @@ function CPU (mem) {
                 break;
             // ADC Ind, Y
             case 0x71:
+                this.clock+=5;
+                this.Abs(this.IndY());
                 break;
             // ADC Z, X
             case 0x75:
+                this.clock+=4;
+                this.ADC(this.ZPX());
                 break;
             // ROR Z, X
             case 0x76:
@@ -493,9 +534,13 @@ function CPU (mem) {
                 break;
             // ADC Abs, Y
             case 0x79:
+                this.clock+=4;
+                this.ADC(this.AbsY());
                 break;
             // ADC Abs, X
             case 0x7D:
+                this.clock+=4;
+                this.ADC(this.AbsX());
                 break;
             // ROR Abs, X
             case 0x7E:
