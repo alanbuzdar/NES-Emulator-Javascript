@@ -587,12 +587,25 @@ function CPU (mem) {
         this.setFlags(status);
     }
 
+    // System operations
+    function BRK() {
+        this.pc+=2;
+        this.push((this.pc>>8)&0xFF);
+        this.push(this.pc&0xFF);
+        this.PHP();
+        this.interrupt = 1;
+        this.pc = this.memory.read(0xFFFE) | (this.memory.read(0xFFFF) << 8);
+        this.pc--;
+    }
+
     // tick the clock
     function tick() {
         opcode = this.readNext();
         switch (opcode) {
             // BRK
             case 0x00:
+                this.clock+=7;
+                this.BRK();
                 break;
             // ORA Ind, X
             case 0x01:
@@ -1279,6 +1292,7 @@ function CPU (mem) {
                 break;
             // NOP
             case 0xEA:
+                this.clock+=2;
                 break;
             // CPX 	Abs 
             case 0xEC:
