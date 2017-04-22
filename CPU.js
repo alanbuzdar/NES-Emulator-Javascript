@@ -51,7 +51,10 @@ function CPU (mem) {
         lowerNib = this.memory.read(addr);
         higherNib = this.memory.read(addr+1);
         toRead = (higherNib << 8) || lowerNib;
-        return toRead + this.Y;
+        result = toRead+this.Y
+        this.clock += ((toRead&0xFF00) != (result&0xFF00)? 1 : 0);
+
+        return result;
     }
 
     // Zero Page
@@ -82,7 +85,10 @@ function CPU (mem) {
         lowerNib = this.readNext();
         higherNib = this.readNext();
         addr = (higherNib << 8) | lowerNib;
-        return addr+this.X;
+        result = addr+this.X;
+        this.clock += ((addr&0xFF00) != (result&0xFF00)? 1 : 0);
+
+        return result;
     }
 
     // Absolute Y
@@ -90,7 +96,10 @@ function CPU (mem) {
         lowerNib = this.readNext();
         higherNib = this.readNext();
         addr = (higherNib << 8) | lowerNib;
-        return addr+this.Y;  
+        result = addr+this.Y;
+        this.clock += ((addr&0xFF00) != (result&0xFF00)? 1 : 0);
+
+        return result;  
      }
 
      // Fetch next byte
@@ -390,6 +399,112 @@ function CPU (mem) {
         this.A = this.Y;
     }
 
+    // Branch operations
+    function BCC(offset) {
+        addr = this.memory.read(offset);
+        if(addr<128)
+            addr += this.pc;
+        else
+            addr += this.pc-256;
+        
+        if(this.carry==0) {
+            this.clock += ((this.pc&0xFF00) != (addr&0xFF00)? 2 : 1);
+            this.pc = addr;
+        }
+    }
+    
+    function BCS(addr) {
+        addr = this.memory.read(offset);
+        if(addr<128)
+            addr += this.pc;
+        else
+            addr += this.pc-256;
+        
+        if(this.carry==1) {
+            this.clock += ((this.pc&0xFF00) != (addr&0xFF00)? 2 : 1);
+            this.pc = addr;
+        }
+    }
+
+    function BEQ(addr) {
+        addr = this.memory.read(offset);
+        if(addr<128)
+            addr += this.pc;
+        else
+            addr += this.pc-256;
+        
+        if(this.zero==0) {
+            this.clock += ((this.pc&0xFF00) != (addr&0xFF00)? 2 : 1);
+            this.pc = addr;
+        }
+    }
+
+    function BMI(addr) {
+        addr = this.memory.read(offset);
+        if(addr<128)
+            addr += this.pc;
+        else
+            addr += this.pc-256;
+        
+        if(this.negative==1) {
+            this.clock += ((this.pc&0xFF00) != (addr&0xFF00)? 2 : 1);
+            this.pc = addr;
+        }
+    }
+
+    function BNE(addr) {
+        addr = this.memory.read(offset);
+        if(addr<128)
+            addr += this.pc;
+        else
+            addr += this.pc-256;
+        
+        if(this.zero!=0) {
+            this.clock += ((this.pc&0xFF00) != (addr&0xFF00)? 2 : 1);
+            this.pc = addr;
+        }
+    }
+
+    function BPL(addr) {
+        addr = this.memory.read(offset);
+        if(addr<128)
+            addr += this.pc;
+        else
+            addr += this.pc-256;
+        
+        if(this.negative==0) {
+            this.clock += ((this.pc&0xFF00) != (addr&0xFF00)? 2 : 1);
+            this.pc = addr;
+        }
+    }
+
+    function BVC(addr) {
+        addr = this.memory.read(offset);
+        if(addr<128)
+            addr += this.pc;
+        else
+            addr += this.pc-256;
+        
+        if(this.overflow==0) {
+            this.clock += ((this.pc&0xFF00) != (addr&0xFF00)? 2 : 1);
+            this.pc = addr;
+        }
+    }
+
+    function BVS(addr) {
+        addr = this.memory.read(offset);
+        if(addr<128)
+            addr += this.pc;
+        else
+            addr += this.pc-256;
+        
+        if(this.overflow==1) {
+            this.clock += ((this.pc&0xFF00) != (addr&0xFF00)? 2 : 1);
+            this.pc = addr;
+        }
+    }
+
+
     // tick the clock
     function tick() {
         opcode = this.readNext();
@@ -437,6 +552,8 @@ function CPU (mem) {
                 break;
             // BPL
             case 0x10:
+                this.clock+=2;
+                this.BPL(this.Im());
                 break;
             // ORA Ind, Y
             case 0x11:
@@ -526,6 +643,8 @@ function CPU (mem) {
                 break;
             // BMI
             case 0x30:
+                this.clock+=2;
+                this.BMI(this.Im());
                 break;
             // AND Ind, Y
             case 0x31:
@@ -607,6 +726,8 @@ function CPU (mem) {
                 break;
             // BVC
             case 0x50:
+                this.clock+=2;
+                this.BVC(this.Im());
                 break;
             // EOR Ind, Y
             case 0x51:
@@ -689,6 +810,8 @@ function CPU (mem) {
                 break;
             // BVS
             case 0x70:
+                this.clock+=2;
+                this.BVS(this.Im());
                 break;
             // ADC Ind, Y
             case 0x71:
@@ -770,6 +893,8 @@ function CPU (mem) {
                 break;
             // BCC
             case 0x90:
+                this.clock+=2;
+                this.BCC(this.Im());
                 break;
             // STA Ind, Y
             case 0x91:
@@ -871,6 +996,8 @@ function CPU (mem) {
                 break;
             // BCS
             case 0xB0:
+                this.clock+=2;
+                this.BCS(this.Im());
                 break;
             // LDA 	Ind, Y 
             case 0xB1:
@@ -979,6 +1106,8 @@ function CPU (mem) {
                 break;
             // BNE
             case 0xD0:
+                this.clock+=2;
+                this.BNE(this.Im());
                 break;
             // CMP Ind, Y 
             case 0xD1:
@@ -1070,6 +1199,8 @@ function CPU (mem) {
                 break;
             // BEQ
             case 0xF0:
+                this.clock+=2;
+                this.BEQ(this.Im());
                 break;
             // SBC Ind, Y
             case 0xF1:
