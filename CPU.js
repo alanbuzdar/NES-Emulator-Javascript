@@ -320,6 +320,75 @@ function CPU (mem) {
         this.interrupt = 1;
     }
 
+    // Storage Operations
+    function LDA(addr) {
+        operand = this.memory.read(addr);
+        setNegative(operand);
+        setZero(operand);
+        this.A = operand;
+    }
+
+    function LDX(addr) {
+        operand = this.memory.read(addr);
+        setNegative(operand);
+        setZero(operand);
+        this.X = operand;
+    }
+
+    function LDY(addr) {
+        operand = this.memory.read(addr);
+        setNegative(operand);
+        setZero(operand);
+        this.Y = operand;
+    }
+
+    function STA(addr) {
+        this.memory.write(addr,this.A);
+    }
+
+    function STX(addr) {
+        this.memory.write(addr,this.X);
+    }
+
+    function STY(addr) {
+        this.memory.write(addr,this.Y);
+    }
+
+    function TAX() {
+        setNegative(this.A);
+        setZero(this.A);
+        this.X = this.A;
+    }
+
+    function TAY() {
+        setNegative(this.A);
+        setZero(this.A);
+        this.Y = this.A;
+    }
+
+    function TSX() {
+        setNegative(this.sp);
+        setZero(this.sp);
+        this.X = this.sp;
+    }
+
+    function TXA() {
+        setNegative(this.X);
+        setZero(this.X);
+        this.A = this.X;
+    }
+
+    function TXS() {
+        setNegative(this.X);
+        setZero(this.X);
+        this.sp = this.X;
+    }
+
+    function TYA() {
+        setNegative(this.Y);
+        setZero(this.Y);
+        this.A = this.Y;
+    }
 
     // tick the clock
     function tick() {
@@ -371,7 +440,7 @@ function CPU (mem) {
                 break;
             // ORA Ind, Y
             case 0x11:
-                this.clock+=6;
+                this.clock+=5;
                 this.ORA(this.IndY());
                 break;
             // ORA Z, X
@@ -658,108 +727,170 @@ function CPU (mem) {
                 break;
             // STA Ind, X
             case 0x81:
+                this.clock+=6;
+                this.STA(this.IndX());
                 break;
             // STY Z
             case 0x84:
+                this.clock+=3;
+                this.STY(this.ZP());
                 break;
             // STA Z
             case 0x85:
+                this.clock+=3;
+                this.STA(this.ZP());
                 break;
             // STX Z
             case 0x86:
+                this.clock+=3;
+                this.STX(this.ZP());
                 break;
             // DEY
             case 0x88:
                 break;
             // TXA
             case 0x8A:
+                this.clock+=2;
+                this.TXA();
                 break;
             // STY Abs
             case 0x8C:
+                this.clock+=4;
+                this.STY(this.Abs());
                 break;
             // STA Abs
             case 0x8D:
+                this.clock+=4;
+                this.STA(this.Abs());
                 break;
             // STX Abs
             case 0x8E:
+                this.clock+=4;
+                this.STX(this.Abs());
                 break;
             // BCC
             case 0x90:
                 break;
             // STA Ind, Y
             case 0x91:
+                this.clock+=5;
+                this.STA(this.IndY());
                 break;
             // STY Z, X
             case 0x94:
+                this.clock+=4;
+                this.STY(this.ZPX());
                 break;
             // STA Z, X
             case 0x95:
                 break;
             // STX Z, Y
             case 0x96:
+                this.clock+=4;
+                this.STX(this.ZPY());
                 break;
             // TYA
             case 0x98:
+                this.clock+=2;
+                this.TYA();
                 break;
             // STA Abs, Y
             case 0x99:
+                this.clock+=4;
+                this.STA(this.AbsY());
                 break;
             // TXS
             case 0x9A:
+                this.clock+=2;
+                this.TXS();
                 break;
             // STA Abs, X
             case 0x9D:
+                this.clock+=4;
+                this.STA(this.AbsX());
                 break;
             // LDY Imm
             case 0xA0:
+                this.clock+=2;
+                this.LDY(this.Im());
                 break;
             // LDA Ind, X
             case 0xA1:
+                this.clock+=6;
+                this.LDA(this.IndX());
                 break;
             // LDX Imm
             case 0xA2:
+                this.clock+=2;
+                this.LDX(this.Im());
                 break;
             // LDY Z
             case 0xA4:
+                this.clock+=3;
+                this.LDY(this.ZP());
                 break;
             // LDA Z
             case 0xA5:
+                this.clock+=3;
+                this.LDA(this.Z());
                 break;
             // LDX Z
             case 0xA6:
+                this.clock+=3;
+                this.LDX(this.ZP());
                 break;
             // TAY
             case 0xA8:
+                this.clock+=2;
+                this.TAY();
                 break;
             // LDA Imm
             case 0xA9:
+                this.clock+=2;
+                this.LDA(this.Im());
                 break;
             // TAX
             case 0xAA:
+                this.clock+=2;
+                this.TAX();
                 break;
             // LDY 	Abs
             case 0xAC:
+                this.clock+=4;
+                this.LDY(this.Abs());
                 break;
             // LDA Abs 
             case 0xAD:
+                this.clock+=4;
+                this.LDA(this.Abs());
                 break;  
             // LDX Abs 
             case 0xAE:
+                this.clock+=4;
+                this.LDX(this.Abs());
                 break;
             // BCS
             case 0xB0:
                 break;
             // LDA 	Ind, Y 
             case 0xB1:
+                this.clock+=5;
+                this.LDA(this.IndY());
                 break;
             // LDY 	Z, X 
             case 0xB4:
+                this.clock+=4;
+                this.LDY(this.ZPX());
                 break;
             // LDA 	Z, X 
             case 0xB5:
+                this.clock+=4;
+                this.LDA(this.ZPX());
                 break;
-            // LDX 	Z, Y 
+            // LDX 	Z, Y
             case 0xB6:
+                this.clock+=4;
+                this.LDX(this.ZPY())
                 break;
             // CLV
             case 0xB8:
@@ -768,18 +899,28 @@ function CPU (mem) {
                 break;
             // LDA 	Abs, Y 
             case 0xB9:
+                this.clock+=4;
+                this.LDA(this.AbsY());
                 break;
             // TSX 
             case 0xBA:
+                this.clock+=2;
+                this.TSX();
                 break;
             // LDY Abs, X 
             case 0xBC:
+                this.clock+=4;
+                this.LDY(this.AbsX());
                 break;
             // LDA Abs, X 
             case 0xBD:
+                this.clock+=4;
+                this.LDA(this.AbsX());
                 break;
             // LDX Abs, Y
             case 0xBE:
+                this.clock+=4;
+                this.LDX(this.AbsY());
                 break;
             // CPY Imm 
             case 0xC0:
