@@ -270,6 +270,57 @@ function CPU (mem) {
         this.A = operand;
     }
 
+    // Register Operations
+    function CLC() {
+        this.carry = 0;
+    }
+
+    function CLD() {
+        this.decimal = 0;
+    }
+
+    function CLI() {
+        this.interrupt = 0;
+    }
+
+    function CLV() {
+        this.overflow = 0;
+    }
+
+    function CMP(addr) {
+        operand = this.A - this.memory.read(addr);
+        this.carry = operand >= 0? 1:0;
+        setNegative(operand);
+        setZero(operand);
+    }
+
+    function CPX(addr) {
+        operand = this.X - this.memory.read(addr);
+        this.carry = operand >= 0? 1:0;
+        setNegative(operand);
+        setZero(operand);
+    }
+
+    function CPY(addr) {
+        operand = this.Y - this.memory.read(addr);
+        this.carry = operand >= 0? 1:0;
+        setNegative(operand);
+        setZero(operand);
+    }
+
+    function SEC() {
+        this.carry = 1;
+    }
+
+    function SED() {
+        this.decimal = 1;
+    }
+
+    function SEI() {
+        this.interrupt = 1;
+    }
+
+
     // tick the clock
     function tick() {
         opcode = this.readNext();
@@ -335,6 +386,8 @@ function CPU (mem) {
                 break;
             // CLC
             case 0x18:
+                this.clock+=2;
+                this.CLC();
                 break;
             // ORA Abs, Y
             case 0x19:
@@ -422,6 +475,8 @@ function CPU (mem) {
                 break;
             // SEC
             case 0x38:
+                this.clock+=2;
+                this.SEC();
                 break;
             // AND Abs, Y
             case 0x39:
@@ -501,6 +556,8 @@ function CPU (mem) {
                 break;
             // CLI
             case 0x58:
+                this.clock+=2;
+                this.CLI();
                 break;  
             // EOR Abs, Y
             case 0x59:
@@ -581,6 +638,8 @@ function CPU (mem) {
                 break;
             // SEI
             case 0x78:
+                this.clock+=2;
+                this.SEI();
                 break;
             // ADC Abs, Y
             case 0x79:
@@ -704,6 +763,8 @@ function CPU (mem) {
                 break;
             // CLV
             case 0xB8:
+                this.clock+=2;
+                this.CLV();
                 break;
             // LDA 	Abs, Y 
             case 0xB9:
@@ -722,15 +783,23 @@ function CPU (mem) {
                 break;
             // CPY Imm 
             case 0xC0:
+                this.clock+=2;
+                this.CPY(this.Im());
                 break;
             // CMP Ind, X 
             case 0xC1:
+                this.clock+=6;
+                this.CMP(this.IndX());
                 break;
             // CPY Z 
             case 0xC4:
+                this.clock+=3;
+                this.CPY(this.ZP());
                 break;
             // CMP Z 
             case 0xC5:
+                this.clock+=3;
+                this.CMP(this.ZP());
                 break;
             // DEC Z
             case 0xC6:
@@ -744,6 +813,8 @@ function CPU (mem) {
                 break;
             // CMP Imm 
             case 0xC9:
+                this.clock+=2;
+                this.CMP(this.Im());
                 break;
             // DEX
             case 0xCA:
@@ -752,9 +823,13 @@ function CPU (mem) {
                 break;
             // CPY Abs 
             case 0xCC:
+                this.clock+=4;
+                this.CPY(this.Abs());
                 break;
             // CMP Abs 
             case 0xCD:
+                this.clock+=4;
+                this.CMP(this.Abs());
                 break;
             // DEC Abs 
             case 0xCE:
@@ -766,9 +841,13 @@ function CPU (mem) {
                 break;
             // CMP Ind, Y 
             case 0xD1:
+                this.clock+=5;
+                this.CMP(this.IndY());
                 break;
             // CMP Z, X 
             case 0xD5:
+                this.clock+=4;
+                this.CMP(this.ZPX());
                 break;
             // DEC Z, X 
             case 0xD6:
@@ -777,12 +856,18 @@ function CPU (mem) {
                 break;
             // CLD 
             case 0xD8:
+                this.clock+=2;
+                this.CLD();
                 break;
             // CMP Abs, Y 
             case 0xD9:
+                this.clock+=4;
+                this.CMP(this.AbsY());
                 break;
             // CMP Abs, X 
             case 0xDD:
+                this.clock+=4;
+                this.CMP(this.AbsX());
                 break;
             // DEC Abs, X
             case 0xDE:
@@ -791,6 +876,8 @@ function CPU (mem) {
                 break;
             // CPX Imm 
             case 0xE0:
+                this.clock+=2;
+                this.CPX(this.Im());
                 break;
             // SBC Ind, X 
             case 0xE1:
@@ -799,6 +886,8 @@ function CPU (mem) {
                 break;
             // CPX 	Z 
             case 0xE4:
+                this.clock+=3;
+                this.CPX(this.ZP());
                 break;
             // SBC 	Z 
             case 0xE5:
@@ -825,6 +914,8 @@ function CPU (mem) {
                 break;
             // CPX 	Abs 
             case 0xEC:
+                this.clock+=4;
+                this.CPX(this.Abs());
                 break;
             // SBC Abs 
             case 0xED:
@@ -856,6 +947,8 @@ function CPU (mem) {
                 break;
             // SED
             case 0xF8:
+                this.clock+=2;
+                this.SED();
                 break;
             // SBC Abs, Y 
             case 0xF9:
