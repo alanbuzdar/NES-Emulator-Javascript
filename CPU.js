@@ -11,15 +11,15 @@ function CPU (mem) {
     // stack pointer (8 bits)
     this.sp = 0xFD;
     // p register (8 bits)
-    // carry, zero, interrupt, decimal, BRK, unused, overflow, negative
+    // carry, zero, interrupt, decimal, brk, unused, overflow, negative
     this.carry = 0;
     this.zero = 0;
     this.interrupt = 0;
     this.decimal = 0;
-    this.BRK = 0;
+    this.brk = 0;
     this.overflow = 0;
     this.negative = 0;
-
+    this.setFlags(0x34);
     // Accumulation register (8 bits)
     this.A = 0;
     // x register (8 bits)
@@ -29,6 +29,18 @@ function CPU (mem) {
     // clock
     this.clock = 0;
 
+    // Stack
+    function push(value) {
+        this.memory.write(this.sp--, value);
+        this.sp = 0x0100 | (this.sp&0xFF);
+    }
+
+    function pop() {
+        this.sp++;
+        this.sp = 0x0100 | (this.sp&0xFF);
+        return this.memory.read(this.sp);
+    }
+
     // Addressing Modes
     // Immediate
     function Im() {
@@ -36,12 +48,20 @@ function CPU (mem) {
         return this.pc;
     }
 
+    // Indirect Absolute
+    function Ind() {
+        lowerNib = this.readNext();
+        higherNib = this.readNext();
+        toRead = (higherNib << 8) | lowerNib;
+        return toRead;        
+    }
+
     // (Indirect, X)
     function IndX() {
         addr = this.memory.read((this.readNext() + this.X)%256);
         lowerNib = this.memory.read(addr);
         higherNib = this.memory.read(addr+1);
-        toRead = (higherNib << 8) || lowerNib;
+        toRead = (higherNib << 8) | lowerNib;
         return toRead; 
     }
 
@@ -50,7 +70,7 @@ function CPU (mem) {
         addr = this.readNext();
         lowerNib = this.memory.read(addr);
         higherNib = this.memory.read(addr+1);
-        toRead = (higherNib << 8) || lowerNib;
+        toRead = (higherNib << 8) | lowerNib;
         result = toRead+this.Y
         this.clock += ((toRead&0xFF00) != (result&0xFF00)? 1 : 0);
 
@@ -105,6 +125,17 @@ function CPU (mem) {
      // Fetch next byte
     function readNext() {
         return this.memory.get(this.pc++);
+    }
+
+    // Sets all flags from 8 bit int
+    function setFlags(status) {
+        this.carry = status&1;
+        this.zero = (status>>1)&1;
+        this.interrupt = (status>>2)&1;
+        this.decimal = (status>>3)&1;
+        this.brk = (status>>4)&1;
+        this.overflow = (status>>6)&1;
+        this.sign = (status>>7)&1;
     }
 
     // Sets Zero Flag based on operand
@@ -279,6 +310,30 @@ function CPU (mem) {
         this.A = operand;
     }
 
+    // Jump Operations
+    function JMP(addr) {
+        this.pc = addr-1;
+    }
+
+    function JSR(addr) {
+        this.push((this.pc>>8)&0xFF);
+        this.push(this.pc&0xFF);
+        this.pc = addr-1;
+    }
+
+    function RTI() {
+        this.PLP();
+        this.pc = this.pop();
+        this.pc += (this.pop()<<8);
+
+    }
+
+    function RTS() {
+        this.pc = this.pop()+(this.pop()<<8);
+        // TODO handle 0xFFFF for music
+    }
+
+
     // Register Operations
     function CLC() {
         this.carry = 0;
@@ -376,9 +431,9 @@ function CPU (mem) {
     }
 
     function TSX() {
-        setNegative(this.sp);
-        setZero(this.sp);
-        this.X = this.sp;
+        this.X = this.sp-0x0100;
+        setNegative(this.X);
+        setZero(this.X);
     }
 
     function TXA() {
@@ -388,9 +443,8 @@ function CPU (mem) {
     }
 
     function TXS() {
-        setNegative(this.X);
-        setZero(this.X);
-        this.sp = this.X;
+        this.sp = this.X+0x0100;
+        this.sp = 0x0100 | (this.sp&0xFF);
     }
 
     function TYA() {
@@ -504,6 +558,34 @@ function CPU (mem) {
         }
     }
 
+    // Stack operations
+    function PHA() {
+        this.push(this.A);
+    }
+
+    function PHP() {
+        this.brk = 1;
+        this.push(
+            this.carry|
+            (this.zero<<1)|
+            (this.interrupt<<2)|
+            (this.decimal<<3)|
+            (this.brk<<4)|
+            (this.overflow<<6)|
+            (this.sign<<7)
+        );
+    }
+
+    function PLA() {
+        this.A = this.pop();
+        this.setZero(this.A);
+        this.setNegative(this.A);
+    }
+
+    function PLP() {
+        status = this.pop();
+        this.setFlags(status);
+    }
 
     // tick the clock
     function tick() {
@@ -529,6 +611,8 @@ function CPU (mem) {
                 break;
             // PHP
             case 0x08:
+                this.clock+=3;
+                this.PHP();
                 break;
             // ORA Im
             case 0x09:
@@ -615,6 +699,8 @@ function CPU (mem) {
                 break;
             // PLP
             case 0x28:
+                this.clock+=4;
+                this.PLP();
                 break;
             // AND Imm
             case 0x29:
@@ -682,6 +768,8 @@ function CPU (mem) {
                 break;
             // RTI
             case 0x40:
+                this.clock+=6;
+                this.RTI();
                 break;
             // EOR Ind, X
             case 0x41:
@@ -700,6 +788,8 @@ function CPU (mem) {
                 break;
             // PHA
             case 0x48:
+                this.clock+=3;
+                this.PHP();
                 break;
             // EOR Imm
             case 0x49:
@@ -713,6 +803,8 @@ function CPU (mem) {
                 break;
             // JMP Abs
             case 0x4C:
+                this.clock+=3;
+                this.JMP(this.Abs());
                 break;
             // EOR Abs
             case 0x4D:
@@ -766,6 +858,8 @@ function CPU (mem) {
                 break;
             // RTS
             case 0x60:
+                this.clock==6;
+                this.RTS();
                 break;
             // ADC Ind, X
             case 0x61:
@@ -784,6 +878,8 @@ function CPU (mem) {
                 break;
             // PLA
             case 0x68:
+                this.clock+=4;
+                this.PLA();
                 break;
             // ADC Imm
             case 0x69:
@@ -797,6 +893,8 @@ function CPU (mem) {
                 break;
             // JMP Ind
             case 0x6C:
+                this.clock+=5;
+                this.JMP(this.Ind());
                 break;
             // ADC Abs
             case 0x6D:
