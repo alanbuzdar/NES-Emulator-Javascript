@@ -3,1351 +3,1350 @@
 
 //Initializes CPU
 function CPU (mem) {
-
+    var self = this;
     // all memory
-    this.memory = mem;
+    var memory = mem;
     // program counter (16 bits)
-    this.pc = 0;
+    var pc = memory.read(0xFFFC) | (memory.read(0xFFFD) << 8);
     // stack pointer (8 bits)
-    this.sp = 0xFD;
+    var sp = 0xFD;
     // p register (8 bits)
     // carry, zero, interrupt, decimal, brk, unused, overflow, negative
-    this.carry = 0;
-    this.zero = 0;
-    this.interrupt = 0;
-    this.decimal = 0;
-    this.brk = 0;
-    this.overflow = 0;
-    this.negative = 0;
-    this.setFlags(0x34);
+    var carry = 0;
+    var zero = 0;
+    var interrupt = 1;
+    var decimal = 0;
+    var brk = 1;
+    var overflow = 0;
+    var negative = 0;
     // Accumulation register (8 bits)
-    this.A = 0;
+    var A = 0;
     // x register (8 bits)
-    this.X = 0;
+    var X = 0;
     // y register (8 bits)
-    this.Y = 0;
+    var Y = 0;
     // clock
-    this.clock = 0;
+    var clock = 0;
 
     // Stack
     function push(value) {
-        this.memory.write(this.sp--, value);
-        this.sp = 0x0100 | (this.sp&0xFF);
+        memory.write(sp--, value);
+        sp = 0x0100 | (sp&0xFF);
     }
 
     function pop() {
-        this.sp++;
-        this.sp = 0x0100 | (this.sp&0xFF);
-        return this.memory.read(this.sp);
+        sp++;
+        sp = 0x0100 | (sp&0xFF);
+        return memory.read(sp);
     }
 
     // Addressing Modes
     // Immediate
     function Im() {
-        this.pc++;
-        return this.pc;
+        pc++;
+        return pc;
     }
 
     // Indirect Absolute
     function Ind() {
-        lowerNib = this.readNext();
-        higherNib = this.readNext();
+        lowerNib = readNext();
+        higherNib = readNext();
         toRead = (higherNib << 8) | lowerNib;
         return toRead;        
     }
 
     // (Indirect, X)
     function IndX() {
-        addr = this.memory.read((this.readNext() + this.X)%256);
-        lowerNib = this.memory.read(addr);
-        higherNib = this.memory.read(addr+1);
+        addr = memory.read((readNext() + X)%256);
+        lowerNib = memory.read(addr);
+        higherNib = memory.read(addr+1);
         toRead = (higherNib << 8) | lowerNib;
         return toRead; 
     }
 
     // (Indirect), Y
     function IndY() {
-        addr = this.readNext();
-        lowerNib = this.memory.read(addr);
-        higherNib = this.memory.read(addr+1);
+        addr = readNext();
+        lowerNib = memory.read(addr);
+        higherNib = memory.read(addr+1);
         toRead = (higherNib << 8) | lowerNib;
-        result = toRead+this.Y
-        this.clock += ((toRead&0xFF00) != (result&0xFF00)? 1 : 0);
+        result = toRead+Y
+        clock += ((toRead&0xFF00) != (result&0xFF00)? 1 : 0);
 
         return result;
     }
 
     // Zero Page
     function ZP() {
-        return this.readNext();
+        return readNext();
     }
 
     // Zero Page, X
     function ZPX() {
-        return (this.readNext() + this.X)%256;
+        return (readNext() + X)%256;
     }
 
     // Zero Page, Y
     function ZPY() {
-        return (this.readNext() + this.Y)%256;
+        return (readNext() + Y)%256;
     }
 
     // Absolute
     function Abs() {
-        lowerNib = this.readNext();
-        higherNib = this.readNext();
+        lowerNib = readNext();
+        higherNib = readNext();
         addr = (higherNib << 8) | lowerNib;
         return addr;
     }
 
     // Absolute X
     function AbsX() {
-        lowerNib = this.readNext();
-        higherNib = this.readNext();
+        lowerNib = readNext();
+        higherNib = readNext();
         addr = (higherNib << 8) | lowerNib;
-        result = addr+this.X;
-        this.clock += ((addr&0xFF00) != (result&0xFF00)? 1 : 0);
+        result = addr+X;
+        clock += ((addr&0xFF00) != (result&0xFF00)? 1 : 0);
 
         return result;
     }
 
     // Absolute Y
     function AbsY() {
-        lowerNib = this.readNext();
-        higherNib = this.readNext();
+        lowerNib = readNext();
+        higherNib = readNext();
         addr = (higherNib << 8) | lowerNib;
-        result = addr+this.Y;
-        this.clock += ((addr&0xFF00) != (result&0xFF00)? 1 : 0);
+        result = addr+Y;
+        clock += ((addr&0xFF00) != (result&0xFF00)? 1 : 0);
 
         return result;  
      }
 
      // Fetch next byte
     function readNext() {
-        return this.memory.get(this.pc++);
+        return memory.read(pc++);
     }
 
     // Sets all flags from 8 bit int
     function setFlags(status) {
-        this.carry = status&1;
-        this.zero = (status>>1)&1;
-        this.interrupt = (status>>2)&1;
-        this.decimal = (status>>3)&1;
-        this.brk = (status>>4)&1;
-        this.overflow = (status>>6)&1;
-        this.sign = (status>>7)&1;
+        carry = status&1;
+        zero = (status>>1)&1;
+        interrupt = (status>>2)&1;
+        decimal = (status>>3)&1;
+        brk = (status>>4)&1;
+        overflow = (status>>6)&1;
+        negative = (status>>7)&1;
     }
 
     // Sets Zero Flag based on operand
     function setZero(operand) {
-        this.zero = operand == 0 ? 1 : 0;
+        zero = operand == 0 ? 1 : 0;
     }
 
     // Sets Negative Flag based on operand
     function setNegative(operand) {
-        this.negative = operand > 0x7f ? 1 : 0;
+        negative = operand > 0x7f ? 1 : 0;
     }
 
     function setCarry(operand) {
-        this.carry = operand > 0xFF ? 1 : 0;
+        carry = operand > 0xFF ? 1 : 0;
     }
 
     // Bitwise Operations
     function AND(addr) {
-        operand = this.memory.read(addr);
-        operand &= this.A;
-        this.setNegative(operand);
-        this.setZero(operand);
-        this.A = operand;
+        operand = memory.read(addr);
+        operand &= A;
+        setNegative(operand);
+        setZero(operand);
+        A = operand;
     }
 
     function ASL(addr) {
         // -1 = Accumulator
-        operand = addr == -1 ? this.A : this.memory.read(addr);
-        this.setCarry(operand)
+        operand = addr == -1 ? A : memory.read(addr);
+        setCarry(operand)
         operand = (operand<<1)&0xFF;
-        this.setNegative(operand);
-        this.setZero(operand);
+        setNegative(operand);
+        setZero(operand);
         if(addr == -1)
-            this.A = operand;
+            A = operand;
         else
-            this.memory.write(addr, operand);
+            memory.write(addr, operand);
     }
 
     function BIT(addr) {
-        operand = this.memory.read(addr);
-        this.setNegative(operand);
-        this.overflow = (operand>>6)&1;
-        operand &= this.A;
-        this.setZero(operand);
+        operand = memory.read(addr);
+        setNegative(operand);
+        overflow = (operand>>6)&1;
+        operand &= A;
+        setZero(operand);
     }
 
     function EOR(addr) {
-        operand = this.memory.read(addr);
-        operand ^= this.A;
-        this.setNegative(operand);
-        this.setZero(operand);
-        this.A = operand;
+        operand = memory.read(addr);
+        operand ^= A;
+        setNegative(operand);
+        setZero(operand);
+        A = operand;
     }
 
     function LSR(addr) {
         // -1 = Accumulator
-        operand = addr == -1 ? this.A : this.memory.read(addr);
+        operand = addr == -1 ? A : memory.read(addr);
         operand &= 0xFF;
-        this.carry = operand&1;
+        carry = operand&1;
         operand >>= 1;
-        this.setNegative(operand);
-        this.setZero(operand);
+        setNegative(operand);
+        setZero(operand);
         if(addr == -1)
-            this.A = operand;
+            A = operand;
         else
-            this.memory.write(addr, operand);
+            memory.write(addr, operand);
     }
 
     function ORA(addr) {
-        operand = this.memory.read(addr);
-        operand |= this.A;
-        this.setNegative(operand);
-        this.setZero(operand);
-        this.A = operand;
+        operand = memory.read(addr);
+        operand |= A;
+        setNegative(operand);
+        setZero(operand);
+        A = operand;
     }
 
     function ROL(addr) {
-        operand = addr == -1 ? this.A : this.memory.read(addr);
-        c = this.carry;
-        this.carry = (operand>>7)&1;
+        operand = addr == -1 ? A : memory.read(addr);
+        c = carry;
+        carry = (operand>>7)&1;
         operand = (operand<<1)&0xFF;
         operand |= c;
-        this.setNegative(operand);
-        this.setZero(operand);
+        setNegative(operand);
+        setZero(operand);
         if(operand == -1)
-            this.A = operand;
+            A = operand;
         else
-            this.memory.write(addr, operand);
+            memory.write(addr, operand);
     }
 
     function ROR(addr) {
-        operand = addr == -1 ? this.A : this.memory.read(addr);
-        c = this.carry<<7;
-        this.carry = operand&1;
+        operand = addr == -1 ? A : memory.read(addr);
+        c = carry<<7;
+        carry = operand&1;
         operand = operand>>1;
         operand |= c;
-        this.setNegative(operand);
-        this.setZero(operand);
+        setNegative(operand);
+        setZero(operand);
         if(addr == -1)
-            this.A = operand;
+            A = operand;
         else
-            this.memory.write(addr, operand);
+            memory.write(addr, operand);
     }
 
     // Arithmetic Operations
     function ADC(addr) {
-        operand = this.memory.read(addr);
-        operand = this.A + operand + this.carry;
-        this.setCarry(operand);
+        operand = memory.read(addr);
+        operand = A + operand + carry;
+        setCarry(operand);
         operand &= 0xFF;
-        this.setNegative(operand);
-        this.setZero(operand);
-        this.A = operand;
+        setNegative(operand);
+        setZero(operand);
+        A = operand;
     }
 
     function DEC(addr) {
-        operand = this.memory.read(addr);
+        operand = memory.read(addr);
         operand = (operand-1)&0xFF;
-        this.setNegative(operand);
-        this.setZero(operand);
-        this.memory.write(addr, operand);
+        setNegative(operand);
+        setZero(operand);
+        memory.write(addr, operand);
     }
 
     function DEX() {
-        operand = this.X;
+        operand = X;
         operand = (operand-1)&0xFF;
-        this.setNegative(operand);
-        this.setZero(operand);
-        this.X = operand;
+        setNegative(operand);
+        setZero(operand);
+        X = operand;
     }
 
     function DEY() {
-        operand = this.Y;
+        operand = Y;
         operand = (operand-1)&0xFF;
-        this.setNegative(operand);
-        this.setZero(operand);
-        this.Y = operand;
+        setNegative(operand);
+        setZero(operand);
+        Y = operand;
     }
 
     function INC(addr) {
-        operand = this.memory.read(addr);
+        operand = memory.read(addr);
         operand = (operand+1)&0xFF;
-        this.setNegative(operand);
-        this.setZero(operand);
-        this.memory.write(addr, operand);
+        setNegative(operand);
+        setZero(operand);
+        memory.write(addr, operand);
     }
 
     function INX() {
-        operand = this.X;
+        operand = X;
         operand = (operand+1)&0xFF;
-        this.setNegative(operand);
-        this.setZero(operand);
-        this.X = operand;
+        setNegative(operand);
+        setZero(operand);
+        X = operand;
     }
 
     function INY() {
-        operand = this.Y;
+        operand = Y;
         operand = (operand+1)&0xFF;
-        this.setNegative(operand);
-        this.setZero(operand);
-        this.Y = operand;
+        setNegative(operand);
+        setZero(operand);
+        Y = operand;
     }
 
     function SBC(addr) {
-        operand = this.memory.read(addr);
-        operand = this.A - operand - (1-this.carry);
-        this.setNegative(operand);
-        this.setZero(operand)
-        this.carry = operand < 0 ? 0:1;
-        this.overflow =  ((((this.A^operand)&0x80)!=0 && ((this.A^this.memory.read(addr))&0x80)!=0)?1:0);
+        operand = memory.read(addr);
+        operand = A - operand - (1-carry);
+        setNegative(operand);
+        setZero(operand)
+        carry = operand < 0 ? 0:1;
+        overflow =  ((((A^operand)&0x80)!=0 && ((A^memory.read(addr))&0x80)!=0)?1:0);
         operand &= 0xFF;
-        this.A = operand;
+        A = operand;
     }
 
     // Jump Operations
     function JMP(addr) {
-        this.pc = addr-1;
+        pc = addr-1;
     }
 
     function JSR(addr) {
-        this.push((this.pc>>8)&0xFF);
-        this.push(this.pc&0xFF);
-        this.pc = addr-1;
+        push((pc>>8)&0xFF);
+        push(pc&0xFF);
+        pc = addr-1;
     }
 
     function RTI() {
-        this.PLP();
-        this.pc = this.pop();
-        this.pc += (this.pop()<<8);
+        PLP();
+        pc = pop();
+        pc += (pop()<<8);
 
     }
 
     function RTS() {
-        this.pc = this.pop()+(this.pop()<<8);
+        pc = pop()+(pop()<<8);
         // TODO handle 0xFFFF for music
     }
 
 
     // Register Operations
     function CLC() {
-        this.carry = 0;
+        carry = 0;
     }
 
     function CLD() {
-        this.decimal = 0;
+        decimal = 0;
     }
 
     function CLI() {
-        this.interrupt = 0;
+        interrupt = 0;
     }
 
     function CLV() {
-        this.overflow = 0;
+        overflow = 0;
     }
 
     function CMP(addr) {
-        operand = this.A - this.memory.read(addr);
-        this.carry = operand >= 0? 1:0;
+        operand = A - memory.read(addr);
+        carry = operand >= 0? 1:0;
         setNegative(operand);
         setZero(operand);
     }
 
     function CPX(addr) {
-        operand = this.X - this.memory.read(addr);
-        this.carry = operand >= 0? 1:0;
+        operand = X - memory.read(addr);
+        carry = operand >= 0? 1:0;
         setNegative(operand);
         setZero(operand);
     }
 
     function CPY(addr) {
-        operand = this.Y - this.memory.read(addr);
-        this.carry = operand >= 0? 1:0;
+        operand = Y - memory.read(addr);
+        carry = operand >= 0? 1:0;
         setNegative(operand);
         setZero(operand);
     }
 
     function SEC() {
-        this.carry = 1;
+        carry = 1;
     }
 
     function SED() {
-        this.decimal = 1;
+        decimal = 1;
     }
 
     function SEI() {
-        this.interrupt = 1;
+        interrupt = 1;
     }
 
     // Storage Operations
     function LDA(addr) {
-        operand = this.memory.read(addr);
+        operand = memory.read(addr);
         setNegative(operand);
         setZero(operand);
-        this.A = operand;
+        A = operand;
     }
 
     function LDX(addr) {
-        operand = this.memory.read(addr);
+        operand = memory.read(addr);
         setNegative(operand);
         setZero(operand);
-        this.X = operand;
+        X = operand;
     }
 
     function LDY(addr) {
-        operand = this.memory.read(addr);
+        operand = memory.read(addr);
         setNegative(operand);
         setZero(operand);
-        this.Y = operand;
+        Y = operand;
     }
 
     function STA(addr) {
-        this.memory.write(addr,this.A);
+        memory.write(addr,A);
     }
 
     function STX(addr) {
-        this.memory.write(addr,this.X);
+        memory.write(addr,X);
     }
 
     function STY(addr) {
-        this.memory.write(addr,this.Y);
+        memory.write(addr,Y);
     }
 
     function TAX() {
-        setNegative(this.A);
-        setZero(this.A);
-        this.X = this.A;
+        setNegative(A);
+        setZero(A);
+        X = A;
     }
 
     function TAY() {
-        setNegative(this.A);
-        setZero(this.A);
-        this.Y = this.A;
+        setNegative(A);
+        setZero(A);
+        Y = A;
     }
 
     function TSX() {
-        this.X = this.sp-0x0100;
-        setNegative(this.X);
-        setZero(this.X);
+        X = sp-0x0100;
+        setNegative(X);
+        setZero(X);
     }
 
     function TXA() {
-        setNegative(this.X);
-        setZero(this.X);
-        this.A = this.X;
+        setNegative(X);
+        setZero(X);
+        A = X;
     }
 
     function TXS() {
-        this.sp = this.X+0x0100;
-        this.sp = 0x0100 | (this.sp&0xFF);
+        sp = X+0x0100;
+        sp = 0x0100 | (sp&0xFF);
     }
 
     function TYA() {
-        setNegative(this.Y);
-        setZero(this.Y);
-        this.A = this.Y;
+        setNegative(Y);
+        setZero(Y);
+        A = Y;
     }
 
     // Branch operations
     function BCC(offset) {
-        addr = this.memory.read(offset);
+        addr = memory.read(offset);
         if(addr<128)
-            addr += this.pc;
+            addr += pc;
         else
-            addr += this.pc-256;
+            addr += pc-256;
         
-        if(this.carry==0) {
-            this.clock += ((this.pc&0xFF00) != (addr&0xFF00)? 2 : 1);
-            this.pc = addr;
+        if(carry==0) {
+            clock += ((pc&0xFF00) != (addr&0xFF00)? 2 : 1);
+            pc = addr;
         }
     }
     
     function BCS(addr) {
-        addr = this.memory.read(offset);
+        addr = memory.read(offset);
         if(addr<128)
-            addr += this.pc;
+            addr += pc;
         else
-            addr += this.pc-256;
+            addr += pc-256;
         
-        if(this.carry==1) {
-            this.clock += ((this.pc&0xFF00) != (addr&0xFF00)? 2 : 1);
-            this.pc = addr;
+        if(carry==1) {
+            clock += ((pc&0xFF00) != (addr&0xFF00)? 2 : 1);
+            pc = addr;
         }
     }
 
     function BEQ(addr) {
-        addr = this.memory.read(offset);
+        addr = memory.read(offset);
         if(addr<128)
-            addr += this.pc;
+            addr += pc;
         else
-            addr += this.pc-256;
+            addr += pc-256;
         
-        if(this.zero==0) {
-            this.clock += ((this.pc&0xFF00) != (addr&0xFF00)? 2 : 1);
-            this.pc = addr;
+        if(zero==0) {
+            clock += ((pc&0xFF00) != (addr&0xFF00)? 2 : 1);
+            pc = addr;
         }
     }
 
     function BMI(addr) {
-        addr = this.memory.read(offset);
+        addr = memory.read(offset);
         if(addr<128)
-            addr += this.pc;
+            addr += pc;
         else
-            addr += this.pc-256;
+            addr += pc-256;
         
-        if(this.negative==1) {
-            this.clock += ((this.pc&0xFF00) != (addr&0xFF00)? 2 : 1);
-            this.pc = addr;
+        if(negative==1) {
+            clock += ((pc&0xFF00) != (addr&0xFF00)? 2 : 1);
+            pc = addr;
         }
     }
 
     function BNE(addr) {
-        addr = this.memory.read(offset);
+        addr = memory.read(offset);
         if(addr<128)
-            addr += this.pc;
+            addr += pc;
         else
-            addr += this.pc-256;
+            addr += pc-256;
         
-        if(this.zero!=0) {
-            this.clock += ((this.pc&0xFF00) != (addr&0xFF00)? 2 : 1);
-            this.pc = addr;
+        if(zero!=0) {
+            clock += ((pc&0xFF00) != (addr&0xFF00)? 2 : 1);
+            pc = addr;
         }
     }
 
     function BPL(addr) {
-        addr = this.memory.read(offset);
+        addr = memory.read(offset);
         if(addr<128)
-            addr += this.pc;
+            addr += pc;
         else
-            addr += this.pc-256;
+            addr += pc-256;
         
-        if(this.negative==0) {
-            this.clock += ((this.pc&0xFF00) != (addr&0xFF00)? 2 : 1);
-            this.pc = addr;
+        if(negative==0) {
+            clock += ((pc&0xFF00) != (addr&0xFF00)? 2 : 1);
+            pc = addr;
         }
     }
 
     function BVC(addr) {
-        addr = this.memory.read(offset);
+        addr = memory.read(offset);
         if(addr<128)
-            addr += this.pc;
+            addr += pc;
         else
-            addr += this.pc-256;
+            addr += pc-256;
         
-        if(this.overflow==0) {
-            this.clock += ((this.pc&0xFF00) != (addr&0xFF00)? 2 : 1);
-            this.pc = addr;
+        if(overflow==0) {
+            clock += ((pc&0xFF00) != (addr&0xFF00)? 2 : 1);
+            pc = addr;
         }
     }
 
     function BVS(addr) {
-        addr = this.memory.read(offset);
+        addr = memory.read(offset);
         if(addr<128)
-            addr += this.pc;
+            addr += pc;
         else
-            addr += this.pc-256;
+            addr += pc-256;
         
-        if(this.overflow==1) {
-            this.clock += ((this.pc&0xFF00) != (addr&0xFF00)? 2 : 1);
-            this.pc = addr;
+        if(overflow==1) {
+            clock += ((pc&0xFF00) != (addr&0xFF00)? 2 : 1);
+            pc = addr;
         }
     }
 
     // Stack operations
     function PHA() {
-        this.push(this.A);
+        push(A);
     }
 
     function PHP() {
-        this.brk = 1;
-        this.push(
-            this.carry|
-            (this.zero<<1)|
-            (this.interrupt<<2)|
-            (this.decimal<<3)|
-            (this.brk<<4)|
-            (this.overflow<<6)|
-            (this.sign<<7)
+        brk = 1;
+        push(
+            carry|
+            (zero<<1)|
+            (interrupt<<2)|
+            (decimal<<3)|
+            (brk<<4)|
+            (overflow<<6)|
+            (negative<<7)
         );
     }
 
     function PLA() {
-        this.A = this.pop();
-        this.setZero(this.A);
-        this.setNegative(this.A);
+        A = pop();
+        setZero(A);
+        setNegative(A);
     }
 
     function PLP() {
-        status = this.pop();
-        this.setFlags(status);
+        status = pop();
+        setFlags(status);
     }
 
     // System operations
     function BRK() {
-        this.pc+=2;
-        this.push((this.pc>>8)&0xFF);
-        this.push(this.pc&0xFF);
-        this.PHP();
-        this.interrupt = 1;
-        this.pc = this.memory.read(0xFFFE) | (this.memory.read(0xFFFF) << 8);
-        this.pc--;
+        pc+=2;
+        push((pc>>8)&0xFF);
+        push(pc&0xFF);
+        PHP();
+        interrupt = 1;
+        pc = memory.read(0xFFFE) | (memory.read(0xFFFF) << 8);
+        pc--;
     }
 
     // tick the clock
-    function tick() {
-        opcode = this.readNext();
+    this.tick = function() {
+        var opcode = readNext();
         switch (opcode) {
             // BRK
             case 0x00:
-                this.clock+=7;
-                this.BRK();
+                clock+=7;
+                BRK();
                 break;
             // ORA Ind, X
             case 0x01:
-                this.clock+=6;
-                this.ORA(this.IndX());
+                clock+=6;
+                ORA(IndX());
                 break;  
             // ORA ZP
             case 0x05:
-                this.clock+=3;
-                this.ORA(this.ZP());
+                clock+=3;
+                ORA(ZP());
                 break;
             // ASL ZP
             case 0x06:
-                this.clock+=5;
-                this.ASL(this.ZP());
+                clock+=5;
+                ASL(ZP());
                 break;
             // PHP
             case 0x08:
-                this.clock+=3;
-                this.PHP();
+                clock+=3;
+                PHP();
                 break;
             // ORA Im
             case 0x09:
-                this.clock+=2;
-                this.ORA(this.Im());
+                clock+=2;
+                ORA(Im());
                 break;
             // ASL Acc
             case 0x0A:
-                this.clock+=2;
-                this.ASL(-1);
+                clock+=2;
+                ASL(-1);
                 break;
             // ORA Abs
             case 0x0D:
-                this.clock+=4;
-                this.ORA(this.Abs());
+                clock+=4;
+                ORA(Abs());
                 break;
             // ASL Abs
             case 0x0E:
-                this.clock+=6;
-                this.ASL(this.Abs());
+                clock+=6;
+                ASL(Abs());
                 break;
             // BPL
             case 0x10:
-                this.clock+=2;
-                this.BPL(this.Im());
+                clock+=2;
+                BPL(Im());
                 break;
             // ORA Ind, Y
             case 0x11:
-                this.clock+=5;
-                this.ORA(this.IndY());
+                clock+=5;
+                ORA(IndY());
                 break;
             // ORA Z, X
             case 0x15:
-                this.clock+=4;
-                this.ORA(this.ZPX());
+                clock+=4;
+                ORA(ZPX());
                 break;
             // ASL Z, X
             case 0x16:
-                this.clock+=6;
-                this.ASL(this.ZPX());
+                clock+=6;
+                ASL(ZPX());
                 break;
             // CLC
             case 0x18:
-                this.clock+=2;
-                this.CLC();
+                clock+=2;
+                CLC();
                 break;
             // ORA Abs, Y
             case 0x19:
-                this.clock+=4;
-                this.ORA(this.AbsY());
+                clock+=4;
+                ORA(AbsY());
                 break;
             // ORA Abs, X
             case 0x1D:
-                this.clock+=4;
-                this.ORA(this.AbsX());
+                clock+=4;
+                ORA(AbsX());
                 break;
             // ASL Abs, X
             case 0x1E:
-                this.clock+=7;
-                this.ASL(this.AbsX());
+                clock+=7;
+                ASL(AbsX());
                 break;
             // JSR
             case 0x20:
                 break;
             // AND Ind, X
             case 0x21:
-                this.clock+=6;
-                this.AND(this.IndX());
+                clock+=6;
+                AND(IndX());
                 break;
             // BIT ZP
             case 0x24:
-                this.clock+=3;
-                this.BIT(ZP());
+                clock+=3;
+                BIT(ZP());
                 break;
             // AND ZP
             case 0x25:
-                this.clock+=3;
-                this.AND(this.ZP());
+                clock+=3;
+                AND(ZP());
                 break;
             // ROL ZP
             case 0x26:
-                this.clock+=5;
-                this.ROL(this.ZP());
+                clock+=5;
+                ROL(ZP());
                 break;
             // PLP
             case 0x28:
-                this.clock+=4;
-                this.PLP();
+                clock+=4;
+                PLP();
                 break;
             // AND Imm
             case 0x29:
-                this.clock+=2;
-                this.AND(this.Im());
+                clock+=2;
+                AND(Im());
                 break;
             // ROL Acc
             case 0x2A:
-                this.clock+=2;
-                this.ROL(-1);
+                clock+=2;
+                ROL(-1);
                 break;
             // BIT Abs
             case 0x2C:
-                this.clock+=4;
-                this.BIT(this.Abs());
+                clock+=4;
+                BIT(Abs());
                 break;
             // AND Abs
             case 0x2D:
-                this.clock+=4;
-                this.AND(this.Abs());
+                clock+=4;
+                AND(Abs());
                 break;
             // ROL Abs
             case 0x2E:
-                this.clock+=6;
-                this.ROL(this.Abs());
+                clock+=6;
+                ROL(Abs());
                 break;
             // BMI
             case 0x30:
-                this.clock+=2;
-                this.BMI(this.Im());
+                clock+=2;
+                BMI(Im());
                 break;
             // AND Ind, Y
             case 0x31:
-                this.clock+=5;
-                this.AND(this.IndY());
+                clock+=5;
+                AND(IndY());
                 break;
             // AND Z, X
             case 0x35:
-                this.clock+=4;
-                this.AND(this.ZPX());
+                clock+=4;
+                AND(ZPX());
                 break;
             // ROL Z, X
             case 0x36:
-                this.clock+=6;
-                this.ROL(this.ZPX());
+                clock+=6;
+                ROL(ZPX());
                 break;
             // SEC
             case 0x38:
-                this.clock+=2;
-                this.SEC();
+                clock+=2;
+                SEC();
                 break;
             // AND Abs, Y
             case 0x39:
-                this.clock+=4;
-                this.AND(this.AbsY());
+                clock+=4;
+                AND(AbsY());
                 break;
             // AND Abs, X
             case 0x3D:
-                this.clock+=4;
-                this.AND(this.AbsX());
+                clock+=4;
+                AND(AbsX());
                 break;
             // ROL Abs, X
             case 0x3E:
-                this.ROL(this.AbsX());
+                ROL(AbsX());
                 break;
             // RTI
             case 0x40:
-                this.clock+=6;
-                this.RTI();
+                clock+=6;
+                RTI();
                 break;
             // EOR Ind, X
             case 0x41:
-                this.clock+=4;
-                this.EOR(this.IndX());
+                clock+=4;
+                EOR(IndX());
                 break;
             // EOR ZP
             case 0x45:
-                this.clock+=3;
-                this.EOR(this.ZP());
+                clock+=3;
+                EOR(ZP());
                 break;
             // LSR ZP
             case 0x46:
-                this.clock+=5;
-                this.LSR(this.ZP());
+                clock+=5;
+                LSR(ZP());
                 break;
             // PHA
             case 0x48:
-                this.clock+=3;
-                this.PHP();
+                clock+=3;
+                PHP();
                 break;
             // EOR Imm
             case 0x49:
-                this.clock+=2;
-                this.EOR(this.Im());
+                clock+=2;
+                EOR(Im());
                 break;
             // LSR Acc
             case 0x4A:
-                this.clock+=2;
-                this.LSR(-1);
+                clock+=2;
+                LSR(-1);
                 break;
             // JMP Abs
             case 0x4C:
-                this.clock+=3;
-                this.JMP(this.Abs());
+                clock+=3;
+                JMP(Abs());
                 break;
             // EOR Abs
             case 0x4D:
-                this.clock+=4;
-                this.EOR(this.Abs());
+                clock+=4;
+                EOR(Abs());
                 break;
             // LSR Abs
             case 0x4E:
-                this.clock+=6;
-                this.LSR(this.Abs());
+                clock+=6;
+                LSR(Abs());
                 break;
             // BVC
             case 0x50:
-                this.clock+=2;
-                this.BVC(this.Im());
+                clock+=2;
+                BVC(Im());
                 break;
             // EOR Ind, Y
             case 0x51:
-                this.clock+=5;
-                this.EOR(this.IndY());
+                clock+=5;
+                EOR(IndY());
                 break;
             // EOR Z, X
             case 0x55:
-                this.clock+=4;
-                this.EOR(this.ZPX());
+                clock+=4;
+                EOR(ZPX());
                 break;
             // LSR Z, X
             case 0x56:
-                this.clock+=6;
-                this.LSR(this.ZPX());
+                clock+=6;
+                LSR(ZPX());
                 break;
             // CLI
             case 0x58:
-                this.clock+=2;
-                this.CLI();
+                clock+=2;
+                CLI();
                 break;  
             // EOR Abs, Y
             case 0x59:
-                this.clock+=4;
-                this.EOR(this.AbsY());
+                clock+=4;
+                EOR(AbsY());
                 break;
             // EOR Abs, X
             case 0x5D:
-                this.clock+=4;
-                this.EOR(this.AbsX());
+                clock+=4;
+                EOR(AbsX());
                 break;
             // LSR ABs, X
             case 0x5E:
-                this.clock+=7;
-                this.LSR(this.AbsX());
+                clock+=7;
+                LSR(AbsX());
                 break;
             // RTS
             case 0x60:
-                this.clock==6;
-                this.RTS();
+                clock==6;
+                RTS();
                 break;
             // ADC Ind, X
             case 0x61:
-                this.clock+=6;
-                this.ADC(this.IndX());
+                clock+=6;
+                ADC(IndX());
                 break;
             // ADC ZP
             case 0x65:
-                this.clock+=3;
-                this.ADC(this.ZP());
+                clock+=3;
+                ADC(ZP());
                 break;
             // ROR ZP
             case 0x66:
-                this.clock+=5;
-                this.ROR(this.ZP());
+                clock+=5;
+                ROR(ZP());
                 break;
             // PLA
             case 0x68:
-                this.clock+=4;
-                this.PLA();
+                clock+=4;
+                PLA();
                 break;
             // ADC Imm
             case 0x69:
-                this.clock+=2;
-                this.ADC(this.Im());
+                clock+=2;
+                ADC(Im());
                 break;
             // ROR Acc
             case 0x6A:
-                this.clock+=2;
-                this.ROR(-1);
+                clock+=2;
+                ROR(-1);
                 break;
             // JMP Ind
             case 0x6C:
-                this.clock+=5;
-                this.JMP(this.Ind());
+                clock+=5;
+                JMP(Ind());
                 break;
             // ADC Abs
             case 0x6D:
-                this.clock+=4;
-                this.ADC(this.Abs());
+                clock+=4;
+                ADC(Abs());
                 break;
             // ROR Abs
             case 0x6E:
-                this.clock+=6;
-                this.ROR(this.Abs());
+                clock+=6;
+                ROR(Abs());
                 break;
             // BVS
             case 0x70:
-                this.clock+=2;
-                this.BVS(this.Im());
+                clock+=2;
+                BVS(Im());
                 break;
             // ADC Ind, Y
             case 0x71:
-                this.clock+=5;
-                this.Abs(this.IndY());
+                clock+=5;
+                Abs(IndY());
                 break;
             // ADC Z, X
             case 0x75:
-                this.clock+=4;
-                this.ADC(this.ZPX());
+                clock+=4;
+                ADC(ZPX());
                 break;
             // ROR Z, X
             case 0x76:
-                this.clock+=6;
-                this.ROR(this.ZPX());
+                clock+=6;
+                ROR(ZPX());
                 break;
             // SEI
             case 0x78:
-                this.clock+=2;
-                this.SEI();
+                clock+=2;
+                SEI();
                 break;
             // ADC Abs, Y
             case 0x79:
-                this.clock+=4;
-                this.ADC(this.AbsY());
+                clock+=4;
+                ADC(AbsY());
                 break;
             // ADC Abs, X
             case 0x7D:
-                this.clock+=4;
-                this.ADC(this.AbsX());
+                clock+=4;
+                ADC(AbsX());
                 break;
             // ROR Abs, X
             case 0x7E:
-                this.clock+=7;
-                this.ROR(this.AbsX());
+                clock+=7;
+                ROR(AbsX());
                 break;
             // STA Ind, X
             case 0x81:
-                this.clock+=6;
-                this.STA(this.IndX());
+                clock+=6;
+                STA(IndX());
                 break;
             // STY Z
             case 0x84:
-                this.clock+=3;
-                this.STY(this.ZP());
+                clock+=3;
+                STY(ZP());
                 break;
             // STA Z
             case 0x85:
-                this.clock+=3;
-                this.STA(this.ZP());
+                clock+=3;
+                STA(ZP());
                 break;
             // STX Z
             case 0x86:
-                this.clock+=3;
-                this.STX(this.ZP());
+                clock+=3;
+                STX(ZP());
                 break;
             // DEY
             case 0x88:
                 break;
             // TXA
             case 0x8A:
-                this.clock+=2;
-                this.TXA();
+                clock+=2;
+                TXA();
                 break;
             // STY Abs
             case 0x8C:
-                this.clock+=4;
-                this.STY(this.Abs());
+                clock+=4;
+                STY(Abs());
                 break;
             // STA Abs
             case 0x8D:
-                this.clock+=4;
-                this.STA(this.Abs());
+                clock+=4;
+                STA(Abs());
                 break;
             // STX Abs
             case 0x8E:
-                this.clock+=4;
-                this.STX(this.Abs());
+                clock+=4;
+                STX(Abs());
                 break;
             // BCC
             case 0x90:
-                this.clock+=2;
-                this.BCC(this.Im());
+                clock+=2;
+                BCC(Im());
                 break;
             // STA Ind, Y
             case 0x91:
-                this.clock+=5;
-                this.STA(this.IndY());
+                clock+=5;
+                STA(IndY());
                 break;
             // STY Z, X
             case 0x94:
-                this.clock+=4;
-                this.STY(this.ZPX());
+                clock+=4;
+                STY(ZPX());
                 break;
             // STA Z, X
             case 0x95:
                 break;
             // STX Z, Y
             case 0x96:
-                this.clock+=4;
-                this.STX(this.ZPY());
+                clock+=4;
+                STX(ZPY());
                 break;
             // TYA
             case 0x98:
-                this.clock+=2;
-                this.TYA();
+                clock+=2;
+                TYA();
                 break;
             // STA Abs, Y
             case 0x99:
-                this.clock+=4;
-                this.STA(this.AbsY());
+                clock+=4;
+                STA(AbsY());
                 break;
             // TXS
             case 0x9A:
-                this.clock+=2;
-                this.TXS();
+                clock+=2;
+                TXS();
                 break;
             // STA Abs, X
             case 0x9D:
-                this.clock+=4;
-                this.STA(this.AbsX());
+                clock+=4;
+                STA(AbsX());
                 break;
             // LDY Imm
             case 0xA0:
-                this.clock+=2;
-                this.LDY(this.Im());
+                clock+=2;
+                LDY(Im());
                 break;
             // LDA Ind, X
             case 0xA1:
-                this.clock+=6;
-                this.LDA(this.IndX());
+                clock+=6;
+                LDA(IndX());
                 break;
             // LDX Imm
             case 0xA2:
-                this.clock+=2;
-                this.LDX(this.Im());
+                clock+=2;
+                LDX(Im());
                 break;
             // LDY Z
             case 0xA4:
-                this.clock+=3;
-                this.LDY(this.ZP());
+                clock+=3;
+                LDY(ZP());
                 break;
             // LDA Z
             case 0xA5:
-                this.clock+=3;
-                this.LDA(this.Z());
+                clock+=3;
+                LDA(Z());
                 break;
             // LDX Z
             case 0xA6:
-                this.clock+=3;
-                this.LDX(this.ZP());
+                clock+=3;
+                LDX(ZP());
                 break;
             // TAY
             case 0xA8:
-                this.clock+=2;
-                this.TAY();
+                clock+=2;
+                TAY();
                 break;
             // LDA Imm
             case 0xA9:
-                this.clock+=2;
-                this.LDA(this.Im());
+                clock+=2;
+                LDA(Im());
                 break;
             // TAX
             case 0xAA:
-                this.clock+=2;
-                this.TAX();
+                clock+=2;
+                TAX();
                 break;
             // LDY 	Abs
             case 0xAC:
-                this.clock+=4;
-                this.LDY(this.Abs());
+                clock+=4;
+                LDY(Abs());
                 break;
             // LDA Abs 
             case 0xAD:
-                this.clock+=4;
-                this.LDA(this.Abs());
+                clock+=4;
+                LDA(Abs());
                 break;  
             // LDX Abs 
             case 0xAE:
-                this.clock+=4;
-                this.LDX(this.Abs());
+                clock+=4;
+                LDX(Abs());
                 break;
             // BCS
             case 0xB0:
-                this.clock+=2;
-                this.BCS(this.Im());
+                clock+=2;
+                BCS(Im());
                 break;
             // LDA 	Ind, Y 
             case 0xB1:
-                this.clock+=5;
-                this.LDA(this.IndY());
+                clock+=5;
+                LDA(IndY());
                 break;
             // LDY 	Z, X 
             case 0xB4:
-                this.clock+=4;
-                this.LDY(this.ZPX());
+                clock+=4;
+                LDY(ZPX());
                 break;
             // LDA 	Z, X 
             case 0xB5:
-                this.clock+=4;
-                this.LDA(this.ZPX());
+                clock+=4;
+                LDA(ZPX());
                 break;
             // LDX 	Z, Y
             case 0xB6:
-                this.clock+=4;
-                this.LDX(this.ZPY())
+                clock+=4;
+                LDX(ZPY())
                 break;
             // CLV
             case 0xB8:
-                this.clock+=2;
-                this.CLV();
+                clock+=2;
+                CLV();
                 break;
             // LDA 	Abs, Y 
             case 0xB9:
-                this.clock+=4;
-                this.LDA(this.AbsY());
+                clock+=4;
+                LDA(AbsY());
                 break;
             // TSX 
             case 0xBA:
-                this.clock+=2;
-                this.TSX();
+                clock+=2;
+                TSX();
                 break;
             // LDY Abs, X 
             case 0xBC:
-                this.clock+=4;
-                this.LDY(this.AbsX());
+                clock+=4;
+                LDY(AbsX());
                 break;
             // LDA Abs, X 
             case 0xBD:
-                this.clock+=4;
-                this.LDA(this.AbsX());
+                clock+=4;
+                LDA(AbsX());
                 break;
             // LDX Abs, Y
             case 0xBE:
-                this.clock+=4;
-                this.LDX(this.AbsY());
+                clock+=4;
+                LDX(AbsY());
                 break;
             // CPY Imm 
             case 0xC0:
-                this.clock+=2;
-                this.CPY(this.Im());
+                clock+=2;
+                CPY(Im());
                 break;
             // CMP Ind, X 
             case 0xC1:
-                this.clock+=6;
-                this.CMP(this.IndX());
+                clock+=6;
+                CMP(IndX());
                 break;
             // CPY Z 
             case 0xC4:
-                this.clock+=3;
-                this.CPY(this.ZP());
+                clock+=3;
+                CPY(ZP());
                 break;
             // CMP Z 
             case 0xC5:
-                this.clock+=3;
-                this.CMP(this.ZP());
+                clock+=3;
+                CMP(ZP());
                 break;
             // DEC Z
             case 0xC6:
-                this.clock+=5;
-                this.DEC(this.ZP());
+                clock+=5;
+                DEC(ZP());
                 break;
             // INY
             case 0xC8:
-                this.clock+=2;
-                this.INY();
+                clock+=2;
+                INY();
                 break;
             // CMP Imm 
             case 0xC9:
-                this.clock+=2;
-                this.CMP(this.Im());
+                clock+=2;
+                CMP(Im());
                 break;
             // DEX
             case 0xCA:
-                this.clock+=2;
-                this.DEX();
+                clock+=2;
+                DEX();
                 break;
             // CPY Abs 
             case 0xCC:
-                this.clock+=4;
-                this.CPY(this.Abs());
+                clock+=4;
+                CPY(Abs());
                 break;
             // CMP Abs 
             case 0xCD:
-                this.clock+=4;
-                this.CMP(this.Abs());
+                clock+=4;
+                CMP(Abs());
                 break;
             // DEC Abs 
             case 0xCE:
-                this.clock+=6;
-                this.DEC(this.Abs());
+                clock+=6;
+                DEC(Abs());
                 break;
             // BNE
             case 0xD0:
-                this.clock+=2;
-                this.BNE(this.Im());
+                clock+=2;
+                BNE(Im());
                 break;
             // CMP Ind, Y 
             case 0xD1:
-                this.clock+=5;
-                this.CMP(this.IndY());
+                clock+=5;
+                CMP(IndY());
                 break;
             // CMP Z, X 
             case 0xD5:
-                this.clock+=4;
-                this.CMP(this.ZPX());
+                clock+=4;
+                CMP(ZPX());
                 break;
             // DEC Z, X 
             case 0xD6:
-                this.clock+=6;
-                this.DEC(this.ZPX());
+                clock+=6;
+                DEC(ZPX());
                 break;
             // CLD 
             case 0xD8:
-                this.clock+=2;
-                this.CLD();
+                clock+=2;
+                CLD();
                 break;
             // CMP Abs, Y 
             case 0xD9:
-                this.clock+=4;
-                this.CMP(this.AbsY());
+                clock+=4;
+                CMP(AbsY());
                 break;
             // CMP Abs, X 
             case 0xDD:
-                this.clock+=4;
-                this.CMP(this.AbsX());
+                clock+=4;
+                CMP(AbsX());
                 break;
             // DEC Abs, X
             case 0xDE:
-                this.clock+=7;
-                this.DEC(this.AbsX());
+                clock+=7;
+                DEC(AbsX());
                 break;
             // CPX Imm 
             case 0xE0:
-                this.clock+=2;
-                this.CPX(this.Im());
+                clock+=2;
+                CPX(Im());
                 break;
             // SBC Ind, X 
             case 0xE1:
-                this.clock+=6;
-                this.SBC(this.IndX());
+                clock+=6;
+                SBC(IndX());
                 break;
             // CPX 	Z 
             case 0xE4:
-                this.clock+=3;
-                this.CPX(this.ZP());
+                clock+=3;
+                CPX(ZP());
                 break;
             // SBC 	Z 
             case 0xE5:
-                this.clock+=3;
-                this.SBC(this.ZP());
+                clock+=3;
+                SBC(ZP());
                 break;
             // INC Z 
             case 0xE6:
-                this.clock+=5;
-                this.INC(this.ZP());
+                clock+=5;
+                INC(ZP());
                 break;
             // INX
             case 0xE8:
-                this.clock+=2;
-                this.INX();
+                clock+=2;
+                INX();
                 break;
             // SBC Imm 
             case 0xE9:
-                this.clock+=2;
-                this.SBC(this.Im());
+                clock+=2;
+                SBC(Im());
                 break;
             // NOP
             case 0xEA:
-                this.clock+=2;
+                clock+=2;
                 break;
             // CPX 	Abs 
             case 0xEC:
-                this.clock+=4;
-                this.CPX(this.Abs());
+                clock+=4;
+                CPX(Abs());
                 break;
             // SBC Abs 
             case 0xED:
-                this.clock+=4;
-                this.SBC(this.Abs());
+                clock+=4;
+                SBC(Abs());
                 break;
             // INC Abs 
             case 0xEE:
-                this.clock+=6;
-                this.INC(this.Abs());
+                clock+=6;
+                INC(Abs());
                 break;
             // BEQ
             case 0xF0:
-                this.clock+=2;
-                this.BEQ(this.Im());
+                clock+=2;
+                BEQ(Im());
                 break;
             // SBC Ind, Y
             case 0xF1:
-                this.clock+=5;
-                this.SBC(this.IndY());
+                clock+=5;
+                SBC(IndY());
                 break;
             // SBC Z, X 
             case 0xF5:
-                this.clock+=4;
-                this.SBC(this.ZPX());
+                clock+=4;
+                SBC(ZPX());
                 break;
             // INC Z, X 
             case 0xF6:
-                this.clock+=6;
-                this.INC(this.ZPX());
+                clock+=6;
+                INC(ZPX());
                 break;
             // SED
             case 0xF8:
-                this.clock+=2;
-                this.SED();
+                clock+=2;
+                SED();
                 break;
             // SBC Abs, Y 
             case 0xF9:
-                this.clock+=4;
-                this.SBC(this.AbsY());
+                clock+=4;
+                SBC(AbsY());
                 break;
             // SBC Abs, X 
             case 0xFD:
-                this.clock+=4;
-                this.SBC(this.AbsX());
+                clock+=4;
+                SBC(AbsX());
                 break;
             // INC Abs, X 
             case 0xFE:
-                this.clock+=7;
-                this.INC(this.AbsX());
+                clock+=7;
+                INC(AbsX());
                 break;
             
         }

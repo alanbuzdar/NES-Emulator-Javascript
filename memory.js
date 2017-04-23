@@ -10,18 +10,24 @@
 // 0x4018 - 0x401F CPU Test Mode
 // 0x4020 - 0xFFFF Cartridge
 function Memory(rom) {
+    var self = this;
+    var RAM = Array(2048).fill(0);
+    var ROM = rom;
+    var prgSize = rom[4]*16384;
+    var chrSize = rom[5]*8192;
 
-    this.RAM = Array(2048);
-    this.ROM = rom;
-
-    function read(address) {
-        if(address < 0x0800)
-            return this.RAM[address];
+    self.read = function(address) {
+        if(address < 0x2000)
+            return RAM[address&0x7FF];
+        if(0x8000 <= address && address <= 0xFFFF)
+            return ROM[address-0x8000];
     }
 
-    function write(address, value) {
-        if(address < 0x0800)
-            this.RAM[address] = value;
+    self.write = function(address, value) {
+        if(address < 0x2000)
+            RAM[address&0x7FF] = value;
+        if(0x8000 <= address && address <= 0xFFFF)
+            rom[address-0x8000] = value;
     }
 
 }

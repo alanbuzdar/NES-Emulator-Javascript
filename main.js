@@ -17,6 +17,10 @@ function readFile(e) {
 function startEmu(rom) {
     mem = new Memory(rom);
     cpu = new CPU(mem);
+
+    while(true) {
+      cpu.tick();
+    }
 }
 
 document.getElementById('file-input')
