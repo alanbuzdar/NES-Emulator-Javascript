@@ -466,7 +466,7 @@ function CPU (mem) {
         }
     }
     
-    function BCS(addr) {
+    function BCS(offset) {
         addr = memory.read(offset);
         if(addr<128)
             addr += pc;
@@ -479,7 +479,7 @@ function CPU (mem) {
         }
     }
 
-    function BEQ(addr) {
+    function BEQ(offset) {
         addr = memory.read(offset);
         if(addr<128)
             addr += pc;
@@ -492,7 +492,7 @@ function CPU (mem) {
         }
     }
 
-    function BMI(addr) {
+    function BMI(offset) {
         addr = memory.read(offset);
         if(addr<128)
             addr += pc;
@@ -505,7 +505,7 @@ function CPU (mem) {
         }
     }
 
-    function BNE(addr) {
+    function BNE(offset) {
         addr = memory.read(offset);
         if(addr<128)
             addr += pc;
@@ -518,7 +518,7 @@ function CPU (mem) {
         }
     }
 
-    function BPL(addr) {
+    function BPL(offset) {
         addr = memory.read(offset);
         if(addr<128)
             addr += pc;
@@ -531,7 +531,7 @@ function CPU (mem) {
         }
     }
 
-    function BVC(addr) {
+    function BVC(offset) {
         addr = memory.read(offset);
         if(addr<128)
             addr += pc;
@@ -544,7 +544,7 @@ function CPU (mem) {
         }
     }
 
-    function BVS(addr) {
+    function BVS(offset) {
         addr = memory.read(offset);
         if(addr<128)
             addr += pc;
