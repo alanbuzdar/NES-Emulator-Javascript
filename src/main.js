@@ -18,9 +18,8 @@ function startEmu(rom) {
     mem = new Memory(rom);
     cpu = new CPU(mem);
 
-    while(true) {
-      cpu.tick();
-    }
+    setInterval(cpu.tick, 200);
+    
 }
 
 document.getElementById('file-input')

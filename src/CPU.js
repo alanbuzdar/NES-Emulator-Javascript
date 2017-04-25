@@ -3,22 +3,24 @@
 
 //Initializes CPU
 function CPU (mem) {
-    var self = this;
+    const DEBUG = true;
     // all memory
     var memory = mem;
     // program counter (16 bits)
-    var pc = memory.read(0xFFFC) | (memory.read(0xFFFD) << 8);
+    var pc = DEBUG ? 0xC000 : memory.read(0xFFFC) | (memory.read(0xFFFD) << 8);
     // stack pointer (8 bits)
     var sp = 0xFD;
     // p register (8 bits)
     // carry, zero, interrupt, decimal, brk, unused, overflow, negative
     var carry = 0;
     var zero = 0;
-    var interrupt = 1;
+    var interrupt = 0;
     var decimal = 0;
-    var brk = 1;
+    var brk = 0;
+    var unused = 0;
     var overflow = 0;
     var negative = 0;
+    setFlags(0x24);
     // Accumulation register (8 bits)
     var A = 0;
     // x register (8 bits)
@@ -43,8 +45,7 @@ function CPU (mem) {
     // Addressing Modes
     // Immediate
     function Im() {
-        pc++;
-        return pc;
+        return pc++;
     }
 
     // Indirect Absolute
@@ -133,6 +134,7 @@ function CPU (mem) {
         interrupt = (status>>2)&1;
         decimal = (status>>3)&1;
         brk = (status>>4)&1;
+        unused = (status>>5)&1;
         overflow = (status>>6)&1;
         negative = (status>>7)&1;
     }
@@ -311,13 +313,13 @@ function CPU (mem) {
 
     // Jump Operations
     function JMP(addr) {
-        pc = addr-1;
+        pc = addr;
     }
 
     function JSR(addr) {
         push((pc>>8)&0xFF);
         push(pc&0xFF);
-        pc = addr-1;
+        pc = addr;
     }
 
     function RTI() {
@@ -486,7 +488,7 @@ function CPU (mem) {
         else
             addr += pc-256;
         
-        if(zero==0) {
+        if(zero==1) {
             clock += ((pc&0xFF00) != (addr&0xFF00)? 2 : 1);
             pc = addr;
         }
@@ -512,7 +514,7 @@ function CPU (mem) {
         else
             addr += pc-256;
         
-        if(zero!=0) {
+        if(zero==0) {
             clock += ((pc&0xFF00) != (addr&0xFF00)? 2 : 1);
             pc = addr;
         }
@@ -562,16 +564,21 @@ function CPU (mem) {
         push(A);
     }
 
-    function PHP() {
-        brk = 1;
-        push(
-            carry|
+    function getP() {
+            return carry|
             (zero<<1)|
             (interrupt<<2)|
             (decimal<<3)|
             (brk<<4)|
+            (unused<<5)|
             (overflow<<6)|
             (negative<<7)
+    }
+
+    function PHP() {
+        brk = 1;
+        push(
+            getP()
         );
     }
 
@@ -597,8 +604,18 @@ function CPU (mem) {
         pc--;
     }
 
+    function d2h(d) {
+        var s = (d&0xFF).toString(16);
+        if(s.length < 2) {
+            s = '0' + s;
+        }
+        return s;
+    }
     // tick the clock
     this.tick = function() {
+        if(DEBUG){
+            console.log(pc.toString(16)+" A:"+d2h(A)+" X:"+d2h(X)+" Y:"+d2h(Y)+" P:"+d2h(getP())+" SP:"+d2h(sp)+" CYC:"+(clock*3 < 10 ? " " : "")+(clock*3 < 100 ? " " : "") + (clock*3));
+        }
         var opcode = readNext();
         switch (opcode) {
             // BRK
@@ -688,6 +705,8 @@ function CPU (mem) {
                 break;
             // JSR
             case 0x20:
+                clock+=6;
+                JSR(Abs());
                 break;
             // AND Ind, X
             case 0x21:
