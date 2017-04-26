@@ -18,7 +18,11 @@ function startEmu(rom) {
     mem = new Memory(rom);
     cpu = new CPU(mem);
 
-    setInterval(cpu.tick, 200);
+    var x = 0;
+    var intervalId = setInterval(function() {
+      cpu.tick();
+      if(++x == 100) window.clearInterval(intervalId);
+    }, 20);
     
 }
 

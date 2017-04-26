@@ -4,6 +4,7 @@
 //Initializes CPU
 function CPU (mem) {
     const DEBUG = true;
+        
     // all memory
     var memory = mem;
     // program counter (16 bits)
@@ -29,6 +30,10 @@ function CPU (mem) {
     var Y = 0;
     // clock
     var clock = 0;
+
+    if(DEBUG)
+        document.getElementById("debug").innerHTML = '<textarea id="textarea" cols="80" rows="40" style="resize: none;" data-role="none"></textarea>'
+
 
     // Stack
     function push(value) {
@@ -330,7 +335,9 @@ function CPU (mem) {
     }
 
     function RTS() {
-        pc = pop()+(pop()<<8);
+        pc = pop();
+        pc |= (pop()<<8);
+        pc++;
         // TODO handle 0xFFFF for music
     }
 
@@ -614,7 +621,8 @@ function CPU (mem) {
     // tick the clock
     this.tick = function() {
         if(DEBUG){
-            console.log(pc.toString(16)+" A:"+d2h(A)+" X:"+d2h(X)+" Y:"+d2h(Y)+" P:"+d2h(getP())+" SP:"+d2h(sp)+" CYC:"+(clock*3 < 10 ? " " : "")+(clock*3 < 100 ? " " : "") + (clock*3));
+            var CYC = (clock*3)%341;
+            document.getElementById("textarea").innerHTML += (pc.toString(16)+" A:"+d2h(A)+" X:"+d2h(X)+" Y:"+d2h(Y)+" P:"+d2h(getP())+" SP:"+d2h(sp)+" CYC:"+(CYC < 10 ? " " : "")+(CYC < 100 ? " " : "") + CYC + "&#13");
         }
         var opcode = readNext();
         switch (opcode) {
