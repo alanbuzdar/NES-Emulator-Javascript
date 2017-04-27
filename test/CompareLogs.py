@@ -15,7 +15,7 @@ with open('cpu.log') as cpuLog, open('nestest.log') as testLog:
             cycSubtract = 1
         else:
             error = error or cpuArr[-1] != testArr[-1]
-        error = cpuArr[0].upper() != testArr[0].upper() or \
+        error = error or cpuArr[0].upper() != testArr[0].upper() or \
             cpuArr[1].upper() != testArr[-6-cycSubtract].upper() or \
             cpuArr[2].upper() != testArr[-5-cycSubtract].upper() or \
             cpuArr[3].upper() != testArr[-4-cycSubtract].upper() or \

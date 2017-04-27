@@ -18,7 +18,6 @@ function CPU (mem) {
     var interrupt = 0;
     var decimal = 0;
     var brk = 0;
-    var unused = 0;
     var overflow = 0;
     var negative = 0;
     setFlags(0x24);
@@ -37,14 +36,14 @@ function CPU (mem) {
 
     // Stack
     function push(value) {
-        memory.write(sp--, value);
-        sp = 0x0100 | (sp&0xFF);
+        memory.write((sp--)|0x100, value);
+        sp = (sp&0xFF);
     }
 
     function pop() {
         sp++;
-        sp = 0x0100 | (sp&0xFF);
-        return memory.read(sp);
+        sp = sp&0xFF;
+        return memory.read(sp|0x100);
     }
 
     // Addressing Modes
@@ -139,7 +138,6 @@ function CPU (mem) {
         interrupt = (status>>2)&1;
         decimal = (status>>3)&1;
         brk = (status>>4)&1;
-        unused = (status>>5)&1;
         overflow = (status>>6)&1;
         negative = (status>>7)&1;
     }
@@ -151,7 +149,7 @@ function CPU (mem) {
 
     // Sets Negative Flag based on operand
     function setNegative(operand) {
-        negative = operand > 0x7f ? 1 : 0;
+        negative = (operand>>7)&1 ? 1 : 0;
     }
 
     function setCarry(operand) {
@@ -170,7 +168,7 @@ function CPU (mem) {
     function ASL(addr) {
         // -1 = Accumulator
         operand = addr == -1 ? A : memory.read(addr);
-        setCarry(operand)
+        carry = (operand>>7)&1;
         operand = (operand<<1)&0xFF;
         setNegative(operand);
         setZero(operand);
@@ -248,8 +246,9 @@ function CPU (mem) {
 
     // Arithmetic Operations
     function ADC(addr) {
-        operand = memory.read(addr);
-        operand = A + operand + carry;
+        var load = memory.read(addr);
+        operand = A + load + carry;
+        overflow = (!((A ^ load) & 0x80) && ((A ^ operand) & 0x80))?1:0;
         setCarry(operand);
         operand &= 0xFF;
         setNegative(operand);
@@ -322,6 +321,7 @@ function CPU (mem) {
     }
 
     function JSR(addr) {
+        pc--;
         push((pc>>8)&0xFF);
         push(pc&0xFF);
         pc = addr;
@@ -363,21 +363,24 @@ function CPU (mem) {
         operand = A - memory.read(addr);
         carry = operand >= 0? 1:0;
         setNegative(operand);
-        setZero(operand);
+        setZero(operand&0xFF);
+        if(zero == 1) carry = 1;
     }
 
     function CPX(addr) {
         operand = X - memory.read(addr);
         carry = operand >= 0? 1:0;
         setNegative(operand);
-        setZero(operand);
+        setZero(operand&0xFF);
+        if(zero == 1) carry = 1;
     }
 
     function CPY(addr) {
         operand = Y - memory.read(addr);
         carry = operand >= 0? 1:0;
         setNegative(operand);
-        setZero(operand);
+        setZero(operand&0xFF);
+        if(zero == 1) carry = 1;
     }
 
     function SEC() {
@@ -439,7 +442,7 @@ function CPU (mem) {
     }
 
     function TSX() {
-        X = sp-0x0100;
+        X = sp;
         setNegative(X);
         setZero(X);
     }
@@ -451,8 +454,7 @@ function CPU (mem) {
     }
 
     function TXS() {
-        sp = X+0x0100;
-        sp = 0x0100 | (sp&0xFF);
+        sp = X&0xFF;
     }
 
     function TYA() {
@@ -577,15 +579,14 @@ function CPU (mem) {
             (interrupt<<2)|
             (decimal<<3)|
             (brk<<4)|
-            (unused<<5)|
+            (1<<5)|
             (overflow<<6)|
             (negative<<7)
     }
 
     function PHP() {
-        brk = 1;
         push(
-            getP()
+            (getP()|0x10)
         );
     }
 
@@ -597,6 +598,7 @@ function CPU (mem) {
 
     function PLP() {
         status = pop();
+        status &= 0xEF;
         setFlags(status);
     }
 
@@ -606,7 +608,6 @@ function CPU (mem) {
         push((pc>>8)&0xFF);
         push(pc&0xFF);
         PHP();
-        interrupt = 1;
         pc = memory.read(0xFFFE) | (memory.read(0xFFFF) << 8);
         pc--;
     }
@@ -828,7 +829,7 @@ function CPU (mem) {
             // PHA
             case 0x48:
                 clock+=3;
-                PHP();
+                PHA();
                 break;
             // EOR Imm
             case 0x49:
@@ -897,7 +898,7 @@ function CPU (mem) {
                 break;
             // RTS
             case 0x60:
-                clock==6;
+                clock+=6;
                 RTS();
                 break;
             // ADC Ind, X
@@ -1007,6 +1008,8 @@ function CPU (mem) {
                 break;
             // DEY
             case 0x88:
+                clock+=2;
+                DEY();
                 break;
             // TXA
             case 0x8A:

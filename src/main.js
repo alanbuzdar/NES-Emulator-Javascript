@@ -21,8 +21,8 @@ function startEmu(rom) {
     var x = 0;
     var intervalId = setInterval(function() {
       cpu.tick();
-      if(++x == 100) window.clearInterval(intervalId);
-    }, 20);
+      if(++x == 1000) window.clearInterval(intervalId);
+    }, 5);
     
 }
 
