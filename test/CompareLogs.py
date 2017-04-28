@@ -1,4 +1,4 @@
-# Compares the output of my emulator with the 'golden log'
+# Compares the output of my emulator with the 'golden log' (ignore illegal opcodes)
 
 lineNumber = 0
 errorCount = 0

@@ -18,12 +18,14 @@ function startEmu(rom) {
     mem = new Memory(rom);
     cpu = new CPU(mem);
 
-    var x = 0;
-    var intervalId = setInterval(function() {
+    // var x = 0;
+    // var intervalId = setInterval(function() {
+    //   cpu.tick();
+    //   if(++x == 4000) window.clearInterval(intervalId);
+    // }, 1);
+
+    for(var i=0; i<6000; i++)
       cpu.tick();
-      if(++x == 2000) window.clearInterval(intervalId);
-    }, 2);
-    
 }
 
 document.getElementById('file-input')

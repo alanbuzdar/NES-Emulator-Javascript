@@ -57,7 +57,9 @@ function CPU (mem) {
         lowerNib = readNext();
         higherNib = readNext();
         toRead = (higherNib << 8) | lowerNib;
-        return toRead;        
+        secondByte = (higherNib << 8) | ((lowerNib+1)&0xFF);
+
+        return memory.read(toRead) | (memory.read(secondByte)<<8);        
     }
 
     // (Indirect, X)
@@ -73,9 +75,9 @@ function CPU (mem) {
     function IndY() {
         addr = readNext();
         lowerNib = memory.read(addr);
-        higherNib = memory.read(addr+1);
+        higherNib = memory.read((addr+1)&0xFF);
         toRead = (higherNib << 8) | lowerNib;
-        result = toRead+Y
+        result = (toRead+Y)&0xFFFF;
         clock += ((toRead&0xFF00) != (result&0xFF00)? 1 : 0);
 
         return result;
@@ -109,7 +111,7 @@ function CPU (mem) {
         lowerNib = readNext();
         higherNib = readNext();
         addr = (higherNib << 8) | lowerNib;
-        result = addr+X;
+        result = (addr+X)&0xFFFF;
         clock += ((addr&0xFF00) != (result&0xFF00)? 1 : 0);
 
         return result;
@@ -120,7 +122,7 @@ function CPU (mem) {
         lowerNib = readNext();
         higherNib = readNext();
         addr = (higherNib << 8) | lowerNib;
-        result = addr+Y;
+        result = (addr+Y)&0xFFFF;
         clock += ((addr&0xFF00) != (result&0xFF00)? 1 : 0);
 
         return result;  
@@ -623,7 +625,7 @@ function CPU (mem) {
     this.tick = function() {
         if(DEBUG){
             var CYC = (clock*3)%341;
-            document.getElementById("textarea").innerHTML += (pc.toString(16)+" A:"+d2h(A)+" X:"+d2h(X)+" Y:"+d2h(Y)+" P:"+d2h(getP())+" SP:"+d2h(sp)+" CYC:"+(CYC < 10 ? " " : "")+(CYC < 100 ? " " : "") + CYC + "&#13");
+            document.getElementById("textarea").innerHTML += ((pc<0x1000 ? "0" : "") + pc.toString(16)+" A:"+d2h(A)+" X:"+d2h(X)+" Y:"+d2h(Y)+" P:"+d2h(getP())+" SP:"+d2h(sp)+" CYC:"+(CYC < 10 ? " " : "")+(CYC < 100 ? " " : "") + CYC + "&#13");
         }
         var opcode = readNext();
         switch (opcode) {
@@ -804,6 +806,7 @@ function CPU (mem) {
                 break;
             // ROL Abs, X
             case 0x3E:
+                clock+=7;
                 ROL(AbsX());
                 break;
             // RTI
@@ -954,7 +957,7 @@ function CPU (mem) {
             // ADC Ind, Y
             case 0x71:
                 clock+=5;
-                Abs(IndY());
+                ADC(IndY());
                 break;
             // ADC Z, X
             case 0x75:
@@ -989,7 +992,9 @@ function CPU (mem) {
             // STA Ind, X
             case 0x81:
                 clock+=6;
+                var prevClock = clock;
                 STA(IndX());
+                clock = prevClock;
                 break;
             // STY Z
             case 0x84:
@@ -1038,8 +1043,10 @@ function CPU (mem) {
                 break;
             // STA Ind, Y
             case 0x91:
-                clock+=5;
+                clock+=6;
+                var prevClock = clock;
                 STA(IndY());
+                clock = prevClock;
                 break;
             // STY Z, X
             case 0x94:
@@ -1048,6 +1055,8 @@ function CPU (mem) {
                 break;
             // STA Z, X
             case 0x95:
+                clock+=4;
+                STA(ZPX());
                 break;
             // STX Z, Y
             case 0x96:
@@ -1061,8 +1070,10 @@ function CPU (mem) {
                 break;
             // STA Abs, Y
             case 0x99:
-                clock+=4;
+                clock+=5;
+                var prevClock = clock;
                 STA(AbsY());
+                clock = prevClock;
                 break;
             // TXS
             case 0x9A:
@@ -1071,8 +1082,10 @@ function CPU (mem) {
                 break;
             // STA Abs, X
             case 0x9D:
-                clock+=4;
+                clock+=5;
+                var prevClock = clock;                
                 STA(AbsX());
+                clock = prevClock;
                 break;
             // LDY Imm
             case 0xA0:
