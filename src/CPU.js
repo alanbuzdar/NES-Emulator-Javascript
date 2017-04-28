@@ -62,9 +62,9 @@ function CPU (mem) {
 
     // (Indirect, X)
     function IndX() {
-        addr = memory.read((readNext() + X)%256);
+        addr = (readNext() + X)&0xFF;
         lowerNib = memory.read(addr);
-        higherNib = memory.read(addr+1);
+        higherNib = memory.read((addr+1)&0xFF);
         toRead = (higherNib << 8) | lowerNib;
         return toRead; 
     }
@@ -224,7 +224,7 @@ function CPU (mem) {
         operand |= c;
         setNegative(operand);
         setZero(operand);
-        if(operand == -1)
+        if(addr == -1)
             A = operand;
         else
             memory.write(addr, operand);
@@ -813,7 +813,7 @@ function CPU (mem) {
                 break;
             // EOR Ind, X
             case 0x41:
-                clock+=4;
+                clock+=6;
                 EOR(IndX());
                 break;
             // EOR ZP
@@ -1097,7 +1097,7 @@ function CPU (mem) {
             // LDA Z
             case 0xA5:
                 clock+=3;
-                LDA(Z());
+                LDA(ZP());
                 break;
             // LDX Z
             case 0xA6:
