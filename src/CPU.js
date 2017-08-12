@@ -3,7 +3,7 @@
 
 //Initializes CPU
 function CPU (mem) {
-    const DEBUG = true;
+    const DEBUG = false;
         
     // all memory
     var memory = mem;

@@ -31,3 +31,6 @@ function startEmu(rom) {
 document.getElementById('file-input')
   .addEventListener('change', readFile, false);
 
+var screen = document.getElementById('screen');
+var c = screen.getContext('2d');
+c.fillStyle = "black"; c.fillRect(0,0,256,240); 
