@@ -5,7 +5,7 @@
 function PPU (screen, rom) {
     var self = this;
     // PPU memory
-    var vram = Array(0x8000).fill(0);
+    var vram = Array(0x4000).fill(0);
     // Object Attribute Memory
     var spriteMem = Array(0x100).fill(0);
     // PPU Control Register 8 bits
@@ -26,21 +26,37 @@ function PPU (screen, rom) {
     var ppuData = 0;
     // OAMDMA Register 8 bits
     var dma = 0;
-    
+    // PPUADDR buffer
+    var ppuBuffer = 0;
+
+
     var prgSize = rom[4]*16384;
     var chrSize = rom[5]*8192;
     var chrROM = rom.slice(16+prgSize, 16+prgSize+chrSize);
     
     this.readStatus = function() {
-
+        var result = status;
+        status &= 0b01111111;
+        return result;
     }
 
+    // Apparently not implemented in many versions, including famicom
     this.readOAM = function() {
         
     }
     
     this.readData = function() {
-        
+        if(ppuAddr <= 0x3EFFF) {
+            var result = ppuBuffer;
+            if(ppuAddr < 0x2000)
+                ppuBuffer = chrROM[ppuAddr];
+
+        }
+
+        var addr = ((ppuAddr-0x3F00)%0x20)+0x3F00;
+        var result = vram[addr];
+        incrementAddr();
+        return result;
     }
 
     this.writeOam = function(value) {
@@ -61,5 +77,10 @@ function PPU (screen, rom) {
 
     this.writeDma = function(value) {
         
+    }
+
+    // Increment Address register based on bit 2 PPU CTRL
+    this.incrementAddr = function() {
+        ppuAddr += ((ctrl>>2)&1) == 0 ? 1: 32;
     }
 }
