@@ -46,15 +46,18 @@ function PPU (screen, rom) {
     }
     
     this.readData = function() {
+        var result;
         if(ppuAddr <= 0x3EFFF) {
-            var result = ppuBuffer;
+            result = ppuBuffer;
             if(ppuAddr < 0x2000)
                 ppuBuffer = chrROM[ppuAddr];
-
+            else
+                ppuBuffer = nameAddr(ppuAddr);
         }
-
-        var addr = ((ppuAddr-0x3F00)%0x20)+0x3F00;
-        var result = vram[addr];
+        else {
+            var addr = ((ppuAddr-0x3F00)%0x20)+0x3F00;
+            result = vram[addr];
+        }
         incrementAddr();
         return result;
     }
