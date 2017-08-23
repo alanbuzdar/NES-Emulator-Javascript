@@ -10,7 +10,7 @@
 // 0x4018 - 0x401F CPU Test Mode
 // 0x4020 - 0x7FFF Rom stuff 
 // 0x8000 - 0xFFFF PRG-ROM
-function Memory(rom) {
+function Memory(rom, ppu) {
     var self = this;
     var RAM = Array(2048).fill(0);
     var ROM = rom;
@@ -23,6 +23,21 @@ function Memory(rom) {
             return RAM[address&0x07FF];
         if(0x8000 <= address && address <= 0xFFFF)
             return prgROM[address%prgSize];
+
+        //PPU Control
+        if(address <= 0x3FFF && address >= 0x2000) {
+            var command = (address - 0x2000)%8;
+            switch (command) {
+                case 2:
+                    return ppu.readStatus();
+                    break;
+                case 4:
+                    return ppu.readOAM();
+                    break;
+                case 7:
+                    return ppu.readData();
+            }
+        }
     }
 
     self.write = function(address, value) {
@@ -30,6 +45,37 @@ function Memory(rom) {
             RAM[address&0x7FF] = value;
         if(0x8000 <= address && address <= 0xFFFF)
             prgROM[address%prgSize] = value;
+
+        //PPU Control
+        if(address <= 0x3FFF && address >= 0x2000) {
+            var command = (address - 0x2000)%8;
+            switch (command) {
+                case 0:
+                    ppu.ctrl = value;
+                    break;
+                case 1:
+                    ppu.mask = value;
+                    break;
+                case 3:
+                    ppu.oamAddr = value;
+                    break;
+                case 4:
+                    ppu.writeOam(value);
+                    break;
+                case 5:
+                    ppu.scroll(value);
+                    break;
+                case 6:
+                    ppu.writeAddr(value);
+                    break;
+                case 7:
+                    ppu.writeData(value);
+                    break;    
+            }
+            
+            if(address == 0x4014)
+                ppu.writeDma(value);
+        }
     }
 
 }

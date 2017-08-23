@@ -15,9 +15,10 @@ function readFile(e) {
 }
 
 function startEmu(rom) {
-    mem = new Memory(rom);
+    ppu = new PPU(screen, rom);
+    mem = new Memory(rom, ppu);
     cpu = new CPU(mem);
-    ppu = new PPU(sreen);
+    
     // var x = 0;
     // var intervalId = setInterval(function() {
     //   cpu.tick();

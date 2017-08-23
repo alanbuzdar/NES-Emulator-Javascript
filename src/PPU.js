@@ -2,7 +2,8 @@
 // Written by Alan Buzdar
 
 //Initializes CPU
-function PPU (screen) {
+function PPU (screen, rom) {
+    var self = this;
     // PPU memory
     var vram = Array(0x8000).fill(0);
     // Object Attribute Memory
@@ -26,6 +27,39 @@ function PPU (screen) {
     // OAMDMA Register 8 bits
     var dma = 0;
     
+    var prgSize = rom[4]*16384;
+    var chrSize = rom[5]*8192;
+    var chrROM = rom.slice(16+prgSize, 16+prgSize+chrSize);
     
+    this.readStatus = function() {
+
+    }
+
+    this.readOAM = function() {
+        
+    }
     
+    this.readData = function() {
+        
+    }
+
+    this.writeOam = function(value) {
+        
+    }
+
+    this.scroll = function(value) {
+        
+    }
+    
+    this.writeAddr = function(value) {
+        
+    }
+
+    this.writeData = function(value) {
+        
+    }
+
+    this.writeDma = function(value) {
+        
+    }
 }
