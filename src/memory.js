@@ -17,7 +17,7 @@ function Memory(rom, ppu) {
     var prgSize = rom[4]*16384;
     var chrSize = rom[5]*8192;
     var prgROM = ROM.slice(16, 16+prgSize);
-
+    
     self.read = function(address) {
         if(address < 0x2000)
             return RAM[address&0x07FF];

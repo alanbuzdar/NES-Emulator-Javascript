@@ -19,11 +19,13 @@ function startEmu(rom) {
     mem = new Memory(rom, ppu);
     cpu = new CPU(mem);
     
-    // var x = 0;
-    // var intervalId = setInterval(function() {
-    //   cpu.tick();
-    //   if(++x == 4000) window.clearInterval(intervalId);
-    // }, 1);
+    var x = 0;
+    var intervalId = setInterval(function() {
+      if(x%3 == 0 && !ppu.stallCpu)
+        cpu.tick();
+      ppu.render();
+      x++;
+      }, 60);
 
     for(var i=0; i<6000; i++)
       cpu.tick();
