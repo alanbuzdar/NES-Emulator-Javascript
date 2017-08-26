@@ -39,6 +39,8 @@ function PPU (screen, rom) {
     var firstWrite = true;
     // Stalling CPU
     var stallCpu = 0;
+    // Mirroring mode
+    var mirroring = rom[6];
 
     var prgSize = rom[4]*16384;
     var chrSize = rom[5]*8192;
@@ -59,9 +61,19 @@ function PPU (screen, rom) {
 
     }
 
-    // TODO: Fill out function to return address based on nametable mirroring
+    // Nametable mirroring. Currently only supports horizontal and vertical
     this.nameAddr = function(address) {
-            
+            // Horizontal Mirroring
+            if(mirroring&1==0) {
+                if( (address >= $2400 && address < $2800) || (address >= $2C00))
+                    return address-$400;
+            }
+            // Vertical Mirroring
+            else {
+                if(address > $2800)
+                    return address - $800;
+            }
+            return address;
     }
     
     this.readData = function() {
@@ -71,7 +83,7 @@ function PPU (screen, rom) {
             if(ppuAddr < 0x2000)
                 ppuBuffer = chrROM[ppuAddr];
             else
-                ppuBuffer = nameAddr(ppuAddr);
+                ppuBuffer = vram[nameAddr(ppuAddr)];
         }
         else {
             var addr = ((ppuAddr-0x3F00)%0x20)+0x3F00;
@@ -124,7 +136,7 @@ function PPU (screen, rom) {
     }
 
     this.writeDma = function(value) {
-        var address = 257*value;
+        var address = 256*value;
         for(var i=0; i < 256; i++) {
             oam[i] = mem.RAM[address+i];
             
