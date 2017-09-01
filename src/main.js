@@ -21,14 +21,14 @@ function startEmu(rom) {
     
     var x = 0;
     var intervalId = setInterval(function() {
-      if(x%3 == 0 && !ppu.stallCpu)
-        cpu.tick();
+      for(i=0; i<10; i++){
+        if( /*x%3 == 0 && */ !ppu.stallCpu)
+          cpu.tick();
+      }
       ppu.render();
       x++;
-      }, 60);
+      }, 17);
 
-    for(var i=0; i<6000; i++)
-      cpu.tick();
 }
 
 document.getElementById('file-input')

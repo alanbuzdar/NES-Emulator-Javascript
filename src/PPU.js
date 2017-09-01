@@ -45,6 +45,74 @@ function PPU (screen, rom) {
     var prgSize = rom[4]*16384;
     var chrSize = rom[5]*8192;
     var chrROM = rom.slice(16+prgSize, 16+prgSize+chrSize);
+
+    var image = new Uint8ClampedArray(240*256*4);
+
+    var palette = [
+        0x7C7C7C,
+        0x0000FC,
+        0x0000BC,
+        0x4428BC,
+        0x940084,
+        0xA80020,
+        0xA81000,
+        0x881400,
+        0x503000,
+        0x007800,
+        0x006800,
+        0x005800,
+        0x004058,
+        0x000000,
+        0x000000,
+        0x000000,
+        0xBCBCBC,
+        0x0078F8,
+        0x0058F8,
+        0x6844FC,
+        0xD800CC,
+        0xE40058,
+        0xF83800,
+        0xE45C10,
+        0xAC7C00,
+        0x00B800,
+        0x00A800,
+        0x00A844,
+        0x008888,
+        0x000000,
+        0x000000,
+        0x000000,
+        0xF8F8F8,
+        0x3CBCFC,
+        0x6888FC,
+        0x9878F8,
+        0xF878F8,
+        0xF85898,
+        0xF87858,
+        0xFCA044,
+        0xF8B800,
+        0xB8F818,
+        0x58D854,
+        0x58F898,
+        0x00E8D8,
+        0x787878,
+        0x000000,
+        0x000000,
+        0xFCFCFC,
+        0xA4E4FC,
+        0xB8B8F8,
+        0xD8B8F8,
+        0xF8B8F8,
+        0xF8A4C0,
+        0xF0D0B0,
+        0xFCE0A8,
+        0xF8D878,
+        0xD8F878,
+        0xB8F8B8,
+        0xB8F8D8,
+        0x00FCFC,
+        0xF8D8F8,
+        0x000000,
+        0x000000];
     
     this.readStatus = function() {
         var result = status;
@@ -53,7 +121,48 @@ function PPU (screen, rom) {
     }
 
     this.render = function() {
+        if(stallCpu > 0)
+            stallCpu--;
 
+        for(var row=0; row<30; row++){
+            for(var col=0; col<32; col++){
+                // Converting pixel value to table indices
+                var nameT = self.readData(0x2000+col+(8*row));
+                var attrT = self.readData(0x23C0+(col/4)+(2*row))
+                var topL = (attrT>>0) & 0b11;
+                var topR = (attrT>>2) & 0b11;
+                var bottomL = (attrT>>4) & 0b11;
+                var bottomR = (attrT>>6) & 0b11;
+
+                var pattern = 16*nameT + (((ctrl>>4)&1)*0x1000);
+                for(var i=0; i<8; i++) {
+                    var lowByte = self.readData(pattern+i);
+                    var highByte = self.readData(pattern+i+8);
+                    for(var bit = 0; bit<8; bit++){
+                        var pixel = (lowByte&1) + ((highByte&1)<<1);
+                        lowByte >>=1; highByte>>=1;
+                        // Background Pixel
+                        if(pixel == 0) {
+                            var color = palette[vram[0x3F00]];
+                            var destRow = (8*row+i);
+                            var destCol = (8*col+bit);
+                            var index = 4*((destRow*8)+destCol)
+                            image[index] = color>>16;
+                            image[index+1] = color>>8;
+                            image[index+2] = color;
+                            image[index+3] = 255;
+                            
+                        }
+                        else {
+
+                        }
+
+                    }
+                }
+            }
+        }
+        var context = screen.getContext('2d');
+        context.putImageData(new ImageData(image, 256, 240),0,0);
     }
 
     // Apparently not implemented in many versions, including famicom
@@ -65,13 +174,13 @@ function PPU (screen, rom) {
     this.nameAddr = function(address) {
             // Horizontal Mirroring
             if(mirroring&1==0) {
-                if( (address >= $2400 && address < $2800) || (address >= $2C00))
-                    return address-$400;
+                if( (address >= 0x2400 && address < 0x2800) || (address >= 0x2C00))
+                    return address-0x400;
             }
             // Vertical Mirroring
             else {
-                if(address > $2800)
-                    return address - $800;
+                if(address > 0x2800)
+                    return address - 0x800;
             }
             return address;
     }
@@ -83,13 +192,13 @@ function PPU (screen, rom) {
             if(ppuAddr < 0x2000)
                 ppuBuffer = chrROM[ppuAddr];
             else
-                ppuBuffer = vram[nameAddr(ppuAddr)];
+                ppuBuffer = vram[self.nameAddr(ppuAddr)];
         }
         else {
             var addr = ((ppuAddr-0x3F00)%0x20)+0x3F00;
             result = vram[addr];
         }
-        incrementAddr();
+        self.incrementAddr();
         return result;
     }
 
@@ -126,13 +235,13 @@ function PPU (screen, rom) {
             if(ppuAddr < 0x2000)
                 chrROM[ppuAddr] = value;
             else
-                vram[nameAddr(ppuAddr)] = value;
+                vram[self.nameAddr(ppuAddr)] = value;
         }
         else {
             var addr = ((ppuAddr-0x3F00)%0x20)+0x3F00;
             vram[addr] = value;
         }
-        incrementAddr();        
+        self.incrementAddr();        
     }
 
     this.writeDma = function(value) {
