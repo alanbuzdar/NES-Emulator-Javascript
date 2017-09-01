@@ -49,15 +49,16 @@ function Memory(rom, ppu) {
         //PPU Control
         if(address <= 0x3FFF && address >= 0x2000) {
             var command = (address - 0x2000)%8;
+           // console.log(value + " " + command);            
             switch (command) {
                 case 0:
-                    ppu.ctrl = value;
+                    ppu.setCtrl(value);
                     break;
                 case 1:
-                    ppu.mask = value;
+                    ppu.setMask(value);
                     break;
                 case 3:
-                    ppu.oamAddr = value;
+                    ppu.setOAddr(value);
                     break;
                 case 4:
                     ppu.writeOam(value);

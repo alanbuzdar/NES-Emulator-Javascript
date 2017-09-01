@@ -121,19 +121,19 @@ function PPU (screen, rom) {
     }
 
     this.render = function() {
+        //image.fill(0);
         if(stallCpu > 0)
             stallCpu--;
 
         for(var row=0; row<30; row++){
             for(var col=0; col<32; col++){
                 // Converting pixel value to table indices
-                var nameT = self.readData(0x2000+col+(8*row));
-                var attrT = self.readData(0x23C0+(col/4)+(2*row))
+                var nameT = self.readData(0x2000+col+(32*row));
+                var attrT = self.readData(0x23C0+(col/4)+(8*(row/4)))
                 var topL = (attrT>>0) & 0b11;
                 var topR = (attrT>>2) & 0b11;
                 var bottomL = (attrT>>4) & 0b11;
                 var bottomR = (attrT>>6) & 0b11;
-
                 var pattern = 16*nameT + (((ctrl>>4)&1)*0x1000);
                 for(var i=0; i<8; i++) {
                     var lowByte = self.readData(pattern+i);
@@ -146,15 +146,17 @@ function PPU (screen, rom) {
                             var color = palette[vram[0x3F00]];
                             var destRow = (8*row+i);
                             var destCol = (8*col+bit);
-                            var index = 4*((destRow*8)+destCol)
-                            image[index] = color>>16;
-                            image[index+1] = color>>8;
-                            image[index+2] = color;
+                            var index = 4*((destRow*256)+destCol)
+                            image[index] = (color>>16)&0xFF;
+                            image[index+1] = (color>>8)&0xFF;
+                            image[index+2] = color&0xFF;
                             image[index+3] = 255;
+                            //console.log(color);
                             
                         }
                         else {
-
+                            //console.log(pixel);
+                            
                         }
 
                     }
@@ -172,6 +174,8 @@ function PPU (screen, rom) {
 
     // Nametable mirroring. Currently only supports horizontal and vertical
     this.nameAddr = function(address) {
+            if(address == 0x3F10 || address == 0x3F14 || address == 0x3F18 || address == 0x3F1C )
+                return address-0x10;
             // Horizontal Mirroring
             if(mirroring&1==0) {
                 if( (address >= 0x2400 && address < 0x2800) || (address >= 0x2C00))
@@ -202,8 +206,20 @@ function PPU (screen, rom) {
         return result;
     }
 
+    this.setCtrl = function(value) {
+        ctrl = value;        
+    }
+
+    this.setMask = function(value) {
+        mask = value;        
+    }
+
+    this.setOAddr = function(value) {
+        oamAddr = value;        
+    }
+
     this.writeOam = function(value) {
-        oam[oamAddr] == value;
+        oam[oamAddr] = value;
         oamAddr++;
         oamAddr %= 0x100;        
     }
@@ -225,13 +241,13 @@ function PPU (screen, rom) {
             ppuAddr = (value<<8);
         }
         else {
-            ppuAddr += value&0xFF;                
+            ppuAddr += (value&0xFF);                
         }
         firstWrite = !firstWrite;
     }
 
     this.writeData = function(value) {
-        if(ppuAddr <= 0x3EFFF) {
+        if(ppuAddr <= 0x3EFF) {
             if(ppuAddr < 0x2000)
                 chrROM[ppuAddr] = value;
             else

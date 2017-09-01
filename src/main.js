@@ -21,7 +21,7 @@ function startEmu(rom) {
     
     var x = 0;
     var intervalId = setInterval(function() {
-      for(i=0; i<10; i++){
+      for(i=0; i<20; i++){
         if( /*x%3 == 0 && */ !ppu.stallCpu)
           cpu.tick();
       }
