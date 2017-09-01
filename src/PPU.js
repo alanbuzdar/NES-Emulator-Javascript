@@ -138,7 +138,7 @@ function PPU (screen, rom) {
                 for(var i=0; i<8; i++) {
                     var lowByte = self.readData(pattern+i);
                     var highByte = self.readData(pattern+i+8);
-                    for(var bit = 0; bit<8; bit++){
+                    for(var bit = 7; bit>=0; bit--){
                         var pixel = (lowByte&1) + ((highByte&1)<<1);
                         lowByte >>=1; highByte>>=1;
                         // Background Pixel
