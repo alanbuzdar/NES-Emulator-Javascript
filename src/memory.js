@@ -22,7 +22,7 @@ function Memory(rom, ppu) {
         if(address < 0x2000)
             return RAM[address&0x07FF];
         if(0x8000 <= address && address <= 0xFFFF)
-            return prgROM[address%prgSize];
+            return prgROM[(address-0x8000)%prgSize];
 
         //PPU Control
         if(address <= 0x3FFF && address >= 0x2000) {
@@ -44,7 +44,7 @@ function Memory(rom, ppu) {
         if(address < 0x2000)
             RAM[address&0x7FF] = value;
         if(0x8000 <= address && address <= 0xFFFF)
-            prgROM[address%prgSize] = value;
+            prgROM[(address-0x8000)%prgSize] = value;
 
         //PPU Control
         if(address <= 0x3FFF && address >= 0x2000) {
@@ -73,10 +73,10 @@ function Memory(rom, ppu) {
                     ppu.writeData(value);
                     break;    
             }
-            
-            if(address == 0x4014)
-                ppu.writeDma(value);
         }
+
+        if(address == 0x4014)
+            ppu.writeDma(value);
     }
 
 }

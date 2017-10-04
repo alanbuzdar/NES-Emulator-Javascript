@@ -128,13 +128,15 @@ function PPU (screen, rom) {
         for(var row=0; row<30; row++){
             for(var col=0; col<32; col++){
                 // Converting pixel value to table indices
-                var nameT = self.readData(0x2000+col+(32*row));
-                var attrT = self.readData(0x23C0+(col/4)+(8*(row/4)))
+                var nameT = self.readData(0x2000+col+(row<<5));
+                var attrT = self.readData(0x23C0+(col>>2)+((row>>2)<<3))
+
                 var topL = (attrT>>0) & 0b11;
                 var topR = (attrT>>2) & 0b11;
                 var bottomL = (attrT>>4) & 0b11;
                 var bottomR = (attrT>>6) & 0b11;
-                var pattern = 16*nameT + (((ctrl>>4)&1)*0x1000);
+                var attr = (attrT >> (((row & 0x02) << 1) + (col & 0x02))) & 0x03;
+                var pattern = (nameT<<4) + ((ctrl & 0x10)<<8);
                 for(var i=0; i<8; i++) {
                     var lowByte = self.readData(pattern+i);
                     var highByte = self.readData(pattern+i+8);
@@ -142,8 +144,8 @@ function PPU (screen, rom) {
                         var pixel = (lowByte&1) + ((highByte&1)<<1);
                         lowByte >>=1; highByte>>=1;
                         // Background Pixel
-                        if(pixel == 0) {
-                            var color = palette[vram[0x3F00]];
+                       // if(pixel == 0) {
+                            var color = palette[pixel+(attr << 2)];
                             var destRow = (8*row+i);
                             var destCol = (8*col+bit);
                             var index = 4*((destRow*256)+destCol)
@@ -153,11 +155,11 @@ function PPU (screen, rom) {
                             image[index+3] = 255;
                             //console.log(color);
                             
-                        }
-                        else {
+                       // }
+                        //else {
                             //console.log(pixel);
                             
-                        }
+                        //}
 
                     }
                 }
@@ -263,8 +265,8 @@ function PPU (screen, rom) {
     this.writeDma = function(value) {
         var address = 256*value;
         for(var i=0; i < 256; i++) {
-            oam[i] = mem.RAM[address+i];
-            
+            oam[i] = mem.read(address+i);
+            console.log(oam[i])
         }
         stallCpu = 513;
     }
