@@ -37,6 +37,8 @@ function PPU (screen, rom) {
     var ppuBuffer = 0;
     // First write for registers that need 2
     var firstWrite = true;
+    // First write for scroll that need 2
+    var firstWriteScroll = true;
     // Stalling CPU
     var stallCpu = 0;
     // Mirroring mode
@@ -117,6 +119,8 @@ function PPU (screen, rom) {
     this.readStatus = function() {
         var result = status;
         status &= 0b01111111;
+        firstWrite = true;
+        firstWriteScroll = true;
         return result;
     }
 
@@ -128,8 +132,8 @@ function PPU (screen, rom) {
         for(var row=0; row<30; row++){
             for(var col=0; col<32; col++){
                 // Converting pixel value to table indices
-                var nameT = self.readData(0x2000+col+(row<<5));
-                var attrT = self.readData(0x23C0+(col>>2)+((row>>2)<<3))
+                var nameT = self.readF(0x2000+col+(row<<5));
+                var attrT = self.readF(0x23C0+(col>>2)+((row>>2)<<3))
 
                 var topL = (attrT>>0) & 0b11;
                 var topR = (attrT>>2) & 0b11;
@@ -138,8 +142,8 @@ function PPU (screen, rom) {
                 var attr = (attrT >> (((row & 0x02) << 1) + (col & 0x02))) & 0x03;
                 var pattern = (nameT<<4) + ((ctrl & 0x10)<<8);
                 for(var i=0; i<8; i++) {
-                    var lowByte = self.readData(pattern+i);
-                    var highByte = self.readData(pattern+i+8);
+                    var lowByte = self.readF(pattern+i);
+                    var highByte = self.readF(pattern+i+8);
                     for(var bit = 7; bit>=0; bit--){
                         var pixel = (lowByte&1) + ((highByte&1)<<1);
                         lowByte >>=1; highByte>>=1;
@@ -190,6 +194,21 @@ function PPU (screen, rom) {
             }
             return address;
     }
+
+    this.readF = function(address) {
+        var result;
+        if(address <= 0x3EFFF) {
+            if(address < 0x2000)
+                result = chrROM[address];
+            else
+                result = vram[self.nameAddr(address)];
+        }
+        else {
+            var addr = ((address-0x3F00)%0x20)+0x3F00;
+            result = vram[addr];
+        }
+        return result;
+    }
     
     this.readData = function() {
         var result;
@@ -227,7 +246,7 @@ function PPU (screen, rom) {
     }
 
     this.scroll = function(value) {
-        if(firstWrite) {
+        if(firstWriteScroll) {
             scrollFH = value&7;
             scrollH = (value>>3)&31;
         }
@@ -235,7 +254,7 @@ function PPU (screen, rom) {
             scrollFV = value&7;
             scrollV = (value>>3)&31;  
         }
-        firstWrite = !firstWrite;
+        firstWriteScroll = !firstWriteScroll;
     }
     
     this.writeAddr = function(value) {
