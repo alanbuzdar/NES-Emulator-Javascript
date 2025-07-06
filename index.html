@@ -2,14 +2,35 @@
 <meta charset="UTF-8">
 <html>
 <head>
-    <h1> NES Emulator </h1>
+    <h1> NES Emula    <style>
+        body { font-family: Arial, sans-serif; }
+        #debug-info { 
+            margin-top: 10px; 
+            font-size: 12px; 
+            color: #666;
+        }
+        canvas { border: 1px solid #ccc; }
+        button { margin: 5px; padding: 10px; }
+    </style>
 </head>
 
 <body>
     <canvas id="screen" width="256" height="240"></canvas>
     <br/>
-    <input type="file" id="file-input" />
+    <input type="file" id="file-input" onchange="loadROM()" />
+    <button onclick="testPPU()">Test PPU Directly</button>
+    <button onclick="testKeyboard()">Test Keyboard</button>
     <div id="debug"></div>
+    <div id="debug-info">
+        <p>Debug Info:</p>
+        <p>PPU Status: <span id="ppu-status">-</span></p>
+        <p>PPU Control: <span id="ppu-control">-</span></p>
+        <p>PPU Mask: <span id="ppu-mask">-</span></p>
+        <p>OAM Data: <span id="oam-data">-</span></p>
+    </div>
+    <div id="console-logs" style="margin-top: 20px; max-height: 400px; overflow-y: auto; background: #f0f0f0; padding: 10px; font-family: monospace; font-size: 12px; white-space: pre-wrap;"></div>
+    <button onclick="copyLogs()">Copy All Logs</button>
+    <button onclick="clearLogs()">Clear Logs</button>
 </body>
 
 <script src="src/PPU.js"></script>
@@ -17,5 +38,308 @@
 <script src="src/CPU.js"></script>
 <script src="src/main.js"></script>
 
+<script>
+// Override console.log to capture logs
+var logBuffer = [];
+var originalLog = console.log;
+console.log = function() {
+    var args = Array.prototype.slice.call(arguments);
+    var logLine = args.join(' ');
+    logBuffer.push(logLine);
+    
+    // Update the display
+    var logsDiv = document.getElementById('console-logs');
+    if (logsDiv) {
+        logsDiv.textContent = logBuffer.join('\n');
+        logsDiv.scrollTop = logsDiv.scrollHeight;
+    }
+    
+    // Also call original console.log
+    originalLog.apply(console, arguments);
+};
+
+function copyLogs() {
+    var textArea = document.createElement('textarea');
+    textArea.value = logBuffer.join('\n');
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textArea);
+    alert('Logs copied to clipboard!');
+}
+
+function clearLogs() {
+    logBuffer = [];
+    document.getElementById('console-logs').textContent = '';
+}
+</script>
+
+<script>
+    // Test PPU directly
+    function testPPU() {
+        console.log("Testing PPU directly...");
+        
+        // Create minimal ROM
+        var rom = new Uint8Array(16384);
+        rom[0] = 0x4E; rom[1] = 0x45; rom[2] = 0x53; rom[3] = 0x1A;
+        rom[4] = 0x01; rom[5] = 0x01; rom[6] = 0x01; rom[7] = 0x00;
+        
+        // Add test CHR data - create a simple pattern
+        for (var i = 0; i < 8192; i++) {
+            rom[16 + i] = 0xFF; // Fill with white pixels
+        }
+        
+        var mem = new Memory(rom, null);
+        var ppu = new PPU(screen, rom, mem);
+        mem.ppu = ppu;
+        
+        console.log("PPU created");
+        
+        // Enable background and sprites
+        mem.write(0x2000, 0x10); // PPU Control
+        mem.write(0x2001, 0x1E); // PPU Mask - enable background and sprites
+        
+        console.log("PPU Control:", ppu.ctrl.toString(16), "Mask:", ppu.mask.toString(16));
+        
+        // Test rendering
+        console.log("Testing rendering...");
+        ppu.render();
+        
+        // Update debug info
+        document.getElementById('ppu-status').textContent = '0x' + ppu.readStatus().toString(16);
+        document.getElementById('ppu-control').textContent = '0x' + ppu.ctrl.toString(16);
+        document.getElementById('ppu-mask').textContent = '0x' + ppu.mask.toString(16);
+        document.getElementById('oam-data').textContent = '0x' + ppu.oam[0].toString(16) + ' ' + 
+                                                       '0x' + ppu.oam[1].toString(16) + ' ' +
+                                                       '0x' + ppu.oam[2].toString(16) + ' ' +
+                                                       '0x' + ppu.oam[3].toString(16);
+        
+        console.log("Test completed");
+        console.log("Background enabled:", (ppu.mask & 0x08) ? "Yes" : "No");
+        console.log("Sprites enabled:", (ppu.mask & 0x10) ? "Yes" : "No");
+    }
+
+    // Test keyboard state
+    function testKeyboard() {
+        console.log("Testing keyboard state...");
+        console.log("window.nesKeys:", window.nesKeys);
+        console.log("A:", window.nesKeys.A);
+        console.log("B:", window.nesKeys.B);
+        console.log("Select:", window.nesKeys.Select);
+        console.log("Start:", window.nesKeys.Start);
+        console.log("Up:", window.nesKeys.Up);
+        console.log("Down:", window.nesKeys.Down);
+        console.log("Left:", window.nesKeys.Left);
+        console.log("Right:", window.nesKeys.Right);
+    }
+
+// Load ROM from file input
+function loadROM() {
+    const fileInput = document.getElementById('file-input');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const arrayBuffer = e.target.result;
+        const rom = new Uint8Array(arrayBuffer);
+        
+        console.log("ROM loaded, size:", rom.length);
+        console.log("PRG size:", rom[4] * 16384);
+        console.log("CHR size:", rom[5] * 8192);
+        console.log("Mirroring:", rom[6]);
+        
+        // Check reset vector - handle different ROM sizes
+        var prgSize = rom[4] * 16384;
+        var resetVectorOffset = 16 + prgSize - 4; // Reset vector is at the end of PRG ROM
+        var resetLow = rom[resetVectorOffset];
+        var resetHigh = rom[resetVectorOffset + 1];
+        var resetAddr = resetLow | (resetHigh << 8);
+        console.log("Reset vector:", resetAddr.toString(16), "(low:", resetLow.toString(16), "high:", resetHigh.toString(16), ")");
+        
+        startEmulator(rom);
+    };
+    
+    reader.readAsArrayBuffer(file);
+}
+
+function startEmulator(rom) {
+    console.log("Starting emulator...");
+    
+    mem = new Memory(rom, null);
+    ppu = new PPU(screen, rom, mem);
+    mem.ppu = ppu;
+    cpu = new CPU(mem);
+    
+    console.log("Initial PC:", cpu.getPC().toString(16));
+    
+    // Test CPU execution immediately
+    console.log("Testing CPU execution...");
+    for (var i = 0; i < 5; i++) {
+        cpu.tick();
+    }
+    
+    console.log("CPU test completed, final PC:", cpu.getPC().toString(16));
+    
+    var frameCount = 0;
+    var intervalId = setInterval(function() {
+        // Run CPU for ~29,830 cycles per frame (1.79MHz / 60Hz)
+        for (var i = 0; i < 29830; i++) {
+            if (!ppu.stallCpu) {
+                var oldPC = cpu.getPC();
+                cpu.tick();
+                
+        
+            }
+        }
+        
+        // Render frame
+        ppu.render();
+        frameCount++;
+        
+        // Update debug info every 30 frames
+        if (frameCount % 30 === 0) {
+            document.getElementById('ppu-status').textContent = '0x' + ppu.readStatus().toString(16);
+            document.getElementById('ppu-control').textContent = '0x' + ppu.ctrl.toString(16);
+            document.getElementById('ppu-mask').textContent = '0x' + ppu.mask.toString(16);
+            document.getElementById('oam-data').textContent = '0x' + ppu.oam[0].toString(16) + ' ' + 
+                                                           '0x' + ppu.oam[1].toString(16) + ' ' +
+                                                           '0x' + ppu.oam[2].toString(16) + ' ' +
+                                                           '0x' + ppu.oam[3].toString(16);
+            
+            // Temporarily disabled frame logging to see controller activity
+            // console.log("Frame:", frameCount, "PPU Ctrl:", ppu.ctrl.toString(16), "Mask:", ppu.mask.toString(16));
+            // console.log("PPU Status:", ppu.readStatus().toString(16), "Background enabled:", (ppu.mask & 0x08) ? "Yes" : "No", "Sprites enabled:", (ppu.mask & 0x10) ? "Yes" : "No");
+            // console.log("Current PC:", cpu.getPC().toString(16));
+        }
+        
+        // Run infinitely to see full game initialization
+        // No frame limit - let the games run as long as they need
+    }, 16.67);
+}
+</script>
+
+<script>
+// Global keyboard state that gets updated immediately
+window.nesKeys = {
+    A: false,
+    B: false,
+    Select: false,
+    Start: false,
+    Up: false,
+    Down: false,
+    Left: false,
+    Right: false
+};
+
+// Also create a more responsive state object
+window.keyboardState = {
+    A: false,
+    B: false,
+    Select: false,
+    Start: false,
+    Up: false,
+    Down: false,
+    Left: false,
+    Right: false
+};
+
+document.addEventListener('keydown', function(e) {
+    let handled = false;
+    switch(e.code) {
+        case 'KeyX': 
+            window.nesKeys.A = true; 
+            window.keyboardState.A = true;
+            handled = true; 
+            break;
+        case 'KeyZ': 
+            window.nesKeys.B = true; 
+            window.keyboardState.B = true;
+            handled = true; 
+            break;
+        case 'ShiftLeft': 
+            window.nesKeys.Select = true; 
+            window.keyboardState.Select = true;
+            handled = true; 
+            break;
+        case 'Enter': 
+            window.nesKeys.Start = true; 
+            window.keyboardState.Start = true;
+            handled = true; 
+            break;
+        case 'ArrowUp': 
+            window.nesKeys.Up = true; 
+            window.keyboardState.Up = true;
+            handled = true; 
+            break;
+        case 'ArrowDown': 
+            window.nesKeys.Down = true; 
+            window.keyboardState.Down = true;
+            handled = true; 
+            break;
+        case 'ArrowLeft': 
+            window.nesKeys.Left = true; 
+            window.keyboardState.Left = true;
+            handled = true; 
+            break;
+        case 'ArrowRight': 
+            window.nesKeys.Right = true; 
+            window.keyboardState.Right = true;
+            handled = true; 
+            break;
+    }
+    if (handled) e.preventDefault();
+});
+
+document.addEventListener('keyup', function(e) {
+    let handled = false;
+    switch(e.code) {
+        case 'KeyX': 
+            window.nesKeys.A = false; 
+            window.keyboardState.A = false;
+            handled = true; 
+            break;
+        case 'KeyZ': 
+            window.nesKeys.B = false; 
+            window.keyboardState.B = false;
+            handled = true; 
+            break;
+        case 'ShiftLeft': 
+            window.nesKeys.Select = false; 
+            window.keyboardState.Select = false;
+            handled = true; 
+            break;
+        case 'Enter': 
+            window.nesKeys.Start = false; 
+            window.keyboardState.Start = false;
+            handled = true; 
+            break;
+        case 'ArrowUp': 
+            window.nesKeys.Up = false; 
+            window.keyboardState.Up = false;
+            handled = true; 
+            break;
+        case 'ArrowDown': 
+            window.nesKeys.Down = false; 
+            window.keyboardState.Down = false;
+            handled = true; 
+            break;
+        case 'ArrowLeft': 
+            window.nesKeys.Left = false; 
+            window.keyboardState.Left = false;
+            handled = true; 
+            break;
+        case 'ArrowRight': 
+            window.nesKeys.Right = false; 
+            window.keyboardState.Right = false;
+            handled = true; 
+            break;
+    }
+    if (handled) e.preventDefault();
+});
+</script>
 
 </html> 

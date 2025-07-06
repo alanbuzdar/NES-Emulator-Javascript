@@ -29,6 +29,9 @@ function CPU (mem) {
     var Y = 0;
     // clock
     var clock = 0;
+    // debug counter
+    var debugCounter = 0;
+    var lastPC = 0;
 
     if(DEBUG)
         document.getElementById("debug").innerHTML = '<textarea id="textarea" cols="80" rows="40" style="resize: none;" data-role="none"></textarea>'
@@ -79,7 +82,6 @@ function CPU (mem) {
         toRead = (higherNib << 8) | lowerNib;
         result = (toRead+Y)&0xFFFF;
         clock += ((toRead&0xFF00) != (result&0xFF00)? 1 : 0);
-
         return result;
     }
 
@@ -362,11 +364,14 @@ function CPU (mem) {
     }
 
     function CMP(addr) {
-        operand = A - memory.read(addr);
+        var memValue = memory.read(addr);
+        operand = A - memValue;
         carry = operand >= 0? 1:0;
         setNegative(operand);
         setZero(operand&0xFF);
         if(zero == 1) carry = 1;
+        
+
     }
 
     function CPX(addr) {
@@ -420,7 +425,7 @@ function CPU (mem) {
     }
 
     function STA(addr) {
-        memory.write(addr,A);
+        memory.write(addr, A);
     }
 
     function STX(addr) {
@@ -499,6 +504,8 @@ function CPU (mem) {
         else
             addr += pc-256;
         
+
+        
         if(zero==1) {
             clock += ((pc&0xFF00) != (addr&0xFF00)? 2 : 1);
             pc = addr;
@@ -524,6 +531,8 @@ function CPU (mem) {
             addr += pc;
         else
             addr += pc-256;
+        
+
         
         if(zero==0) {
             clock += ((pc&0xFF00) != (addr&0xFF00)? 2 : 1);
@@ -621,13 +630,39 @@ function CPU (mem) {
         }
         return s;
     }
+    // Getter for PC
+    this.getPC = function() {
+        return pc;
+    }
+    
     // tick the clock
     this.tick = function() {
+        // NMI handling
+        if (memory.ppu && memory.ppu.nmiRequested) {
+            memory.ppu.nmiRequested = false;
+            // Push PC and status to stack
+            push((pc >> 8) & 0xFF);
+            push(pc & 0xFF);
+            push(getP() & 0xEF); // Clear B flag
+            // Set PC to NMI vector
+            pc = memory.read(0xFFFA) | (memory.read(0xFFFB) << 8);
+            // Set interrupt disable flag
+            interrupt = 1;
+            clock += 7; // NMI takes 7 cycles
+            return;
+        }
         if(DEBUG){
             var CYC = (clock*3)%341;
             document.getElementById("textarea").innerHTML += ((pc<0x1000 ? "0" : "") + pc.toString(16)+" A:"+d2h(A)+" X:"+d2h(X)+" Y:"+d2h(Y)+" P:"+d2h(getP())+" SP:"+d2h(sp)+" CYC:"+(CYC < 10 ? " " : "")+(CYC < 100 ? " " : "") + CYC + "&#13");
         }
         var opcode = readNext();
+        
+
+        
+
+        
+
+        
         switch (opcode) {
             // BRK
             case 0x00:
