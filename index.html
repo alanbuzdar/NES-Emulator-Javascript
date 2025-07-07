@@ -20,6 +20,9 @@
     <input type="file" id="file-input" onchange="loadROM()" />
     <button onclick="testPPU()">Test PPU Directly</button>
     <button onclick="testKeyboard()">Test Keyboard</button>
+            <button onclick="testControllerInput()">Test Controller Input</button>
+        <button onclick="testStartButton()">Test Start Button</button>
+        <button onclick="testControllerLatch()">Test Controller Latch</button>
     <div id="debug"></div>
     <div id="debug-info">
         <p>Debug Info:</p>
@@ -131,6 +134,46 @@ function clearLogs() {
         console.log("Down:", window.nesKeys.Down);
         console.log("Left:", window.nesKeys.Left);
         console.log("Right:", window.nesKeys.Right);
+    }
+
+    // Test controller input by simulating key press
+    function testControllerInput() {
+        console.log("Testing controller input - holding A key for 3 seconds...");
+        
+        // Simulate pressing A key
+        window.nesKeys.A = true;
+        window.keyboardState.A = true;
+        window.globalKeyboardState.A = true;
+        
+        console.log("A key pressed - state:", JSON.stringify(window.globalKeyboardState));
+        
+        // Release after 3 seconds
+        setTimeout(function() {
+            window.nesKeys.A = false;
+            window.keyboardState.A = false;
+            window.globalKeyboardState.A = false;
+            console.log("A key released - state:", JSON.stringify(window.globalKeyboardState));
+        }, 3000);
+    }
+
+    // Test Start button specifically
+    function testStartButton() {
+        console.log("Testing Start button - pressing for 2 seconds...");
+        
+        // Simulate pressing Start key
+        window.nesKeys.Start = true;
+        window.keyboardState.Start = true;
+        window.globalKeyboardState.Start = true;
+        
+        console.log("Start key pressed - state:", JSON.stringify(window.globalKeyboardState));
+        
+        // Release after 2 seconds
+        setTimeout(function() {
+            window.nesKeys.Start = false;
+            window.keyboardState.Start = false;
+            window.globalKeyboardState.Start = false;
+            console.log("Start key released - state:", JSON.stringify(window.globalKeyboardState));
+        }, 2000);
     }
 
 // Load ROM from file input
@@ -247,47 +290,81 @@ window.keyboardState = {
     Right: false
 };
 
+// Global keyboard state for memory.js to access
+window.globalKeyboardState = {
+    A: false,
+    B: false,
+    Select: false,
+    Start: false,
+    Up: false,
+    Down: false,
+    Left: false,
+    Right: false
+};
+
+// Function to get current keyboard state (for memory.js to call)
+window.getCurrentKeyboardState = function() {
+    return {
+        A: window.globalKeyboardState.A,
+        B: window.globalKeyboardState.B,
+        Select: window.globalKeyboardState.Select,
+        Start: window.globalKeyboardState.Start,
+        Up: window.globalKeyboardState.Up,
+        Down: window.globalKeyboardState.Down,
+        Left: window.globalKeyboardState.Left,
+        Right: window.globalKeyboardState.Right
+    };
+};
+
 document.addEventListener('keydown', function(e) {
     let handled = false;
     switch(e.code) {
         case 'KeyX': 
             window.nesKeys.A = true; 
             window.keyboardState.A = true;
+            window.globalKeyboardState.A = true;
             handled = true; 
             break;
         case 'KeyZ': 
             window.nesKeys.B = true; 
             window.keyboardState.B = true;
+            window.globalKeyboardState.B = true;
             handled = true; 
             break;
         case 'ShiftLeft': 
             window.nesKeys.Select = true; 
             window.keyboardState.Select = true;
+            window.globalKeyboardState.Select = true;
             handled = true; 
             break;
         case 'Enter': 
             window.nesKeys.Start = true; 
             window.keyboardState.Start = true;
+            window.globalKeyboardState.Start = true;
             handled = true; 
             break;
         case 'ArrowUp': 
             window.nesKeys.Up = true; 
             window.keyboardState.Up = true;
+            window.globalKeyboardState.Up = true;
             handled = true; 
             break;
         case 'ArrowDown': 
             window.nesKeys.Down = true; 
             window.keyboardState.Down = true;
+            window.globalKeyboardState.Down = true;
             handled = true; 
             break;
         case 'ArrowLeft': 
             window.nesKeys.Left = true; 
             window.keyboardState.Left = true;
+            window.globalKeyboardState.Left = true;
             handled = true; 
             break;
         case 'ArrowRight': 
             window.nesKeys.Right = true; 
             window.keyboardState.Right = true;
+            window.globalKeyboardState.Right = true;
             handled = true; 
             break;
     }
@@ -300,46 +377,76 @@ document.addEventListener('keyup', function(e) {
         case 'KeyX': 
             window.nesKeys.A = false; 
             window.keyboardState.A = false;
+            window.globalKeyboardState.A = false;
             handled = true; 
             break;
         case 'KeyZ': 
             window.nesKeys.B = false; 
             window.keyboardState.B = false;
+            window.globalKeyboardState.B = false;
             handled = true; 
             break;
         case 'ShiftLeft': 
             window.nesKeys.Select = false; 
             window.keyboardState.Select = false;
+            window.globalKeyboardState.Select = false;
             handled = true; 
             break;
         case 'Enter': 
             window.nesKeys.Start = false; 
             window.keyboardState.Start = false;
+            window.globalKeyboardState.Start = false;
             handled = true; 
             break;
         case 'ArrowUp': 
             window.nesKeys.Up = false; 
             window.keyboardState.Up = false;
+            window.globalKeyboardState.Up = false;
             handled = true; 
             break;
         case 'ArrowDown': 
             window.nesKeys.Down = false; 
             window.keyboardState.Down = false;
+            window.globalKeyboardState.Down = false;
             handled = true; 
             break;
         case 'ArrowLeft': 
             window.nesKeys.Left = false; 
             window.keyboardState.Left = false;
+            window.globalKeyboardState.Left = false;
             handled = true; 
             break;
         case 'ArrowRight': 
             window.nesKeys.Right = false; 
             window.keyboardState.Right = false;
+            window.globalKeyboardState.Right = false;
             handled = true; 
             break;
     }
     if (handled) e.preventDefault();
 });
+
+// Test controller latch logic
+function testControllerLatch() {
+    console.log('Testing controller latch...');
+    var keys = window.getCurrentKeyboardState();
+    console.log('Current keyboard state:', JSON.stringify(keys));
+    
+    // Simulate a controller latch
+    var controllerState = 
+        (keys.A ? 1 : 0) |
+        (keys.B ? 2 : 0) |
+        (keys.Select ? 4 : 0) |
+        (keys.Start ? 8 : 0) |
+        (keys.Up ? 16 : 0) |
+        (keys.Down ? 32 : 0) |
+        (keys.Left ? 64 : 0) |
+        (keys.Right ? 128 : 0);
+    
+    console.log('Controller state would be:', controllerState.toString(16));
+    console.log('First bit (A button):', (controllerState & 1));
+    console.log('Fourth bit (Start button):', (controllerState & 8) ? 1 : 0);
+}
 </script>
 
 </html> 

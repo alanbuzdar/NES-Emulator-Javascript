@@ -29,6 +29,11 @@ function Memory(rom, ppu) {
     var controllerShift = 0;
     var writeLogCounter = 0;
     
+    // Function to update keyboard state (called from HTML)
+    self.updateKeyboardState = function(keys) {
+        // This function is no longer needed since we use window.globalKeyboardState
+    };
+    
     self.read = function(address) {
         var result;
         
@@ -51,8 +56,29 @@ function Memory(rom, ppu) {
                 default:
                     result = 0;
             }
-        } else if (address === 0x4016) {
+        } else if (address === 0x4016 || address === 0x4017) {
+            // Use the global keyboard state from window object
+            var keys = (typeof window !== 'undefined' && window.getCurrentKeyboardState) ? window.getCurrentKeyboardState() : {
+                A: false, B: false, Select: false, Start: false,
+                Up: false, Down: false, Left: false, Right: false
+            };
+            
+
+            
+            controllerState =
+                (keys.A ? 1 : 0) |
+                (keys.B ? 2 : 0) |
+                (keys.Select ? 4 : 0) |
+                (keys.Start ? 8 : 0) |
+                (keys.Up ? 16 : 0) |
+                (keys.Down ? 32 : 0) |
+                (keys.Left ? 64 : 0) |
+                (keys.Right ? 128 : 0);
+            
+            // Get the current bit from the shift register
             var value = controllerShift & 1;
+            
+
             
             // Shift the register AFTER returning the value
             if (!controllerStrobe) controllerShift >>= 1;
@@ -99,19 +125,19 @@ function Memory(rom, ppu) {
                     self.ppu.writeData(value);
                     break;
             }
-        } else if (address === 0x4016) {
+        } else if (address === 0x4016 || address === 0x4017) {
             var oldStrobe = controllerStrobe;
             controllerStrobe = value & 1;
             writeLogCounter++;
             
+
+            
             if (!controllerStrobe && lastStrobe) { // Only latch when strobe transitions from 1 to 0
-                // Use the more responsive keyboardState object
-                var keys = (typeof window !== 'undefined' && window.keyboardState) ? window.keyboardState : {};
-                
-                // Fallback to nesKeys if keyboardState is not available
-                if (typeof window !== 'undefined' && !window.keyboardState && window.nesKeys) {
-                    keys = window.nesKeys;
-                }
+                // Use the global keyboard state from window object
+                var keys = (typeof window !== 'undefined' && window.getCurrentKeyboardState) ? window.getCurrentKeyboardState() : {
+                    A: false, B: false, Select: false, Start: false,
+                    Up: false, Down: false, Left: false, Right: false
+                };
                 
                 controllerState =
                     (keys.A ? 1 : 0) |
@@ -123,6 +149,8 @@ function Memory(rom, ppu) {
                     (keys.Left ? 64 : 0) |
                     (keys.Right ? 128 : 0);
                 controllerShift = controllerState;
+                
+
             }
             
             lastStrobe = controllerStrobe;

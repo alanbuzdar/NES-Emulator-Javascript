@@ -54,6 +54,10 @@ function PPU (screen, rom, mem) {
     var frameCounter = 0;
     self.frameCounter = frameCounter;
     self.nmiRequested = false;
+    
+    // VBlank flag timing
+    var vblankSetTime = 0;
+    var vblankCleared = false;
 
     var prgSize = rom[4]*16384;
     var chrSize = rom[5]*8192;
@@ -127,10 +131,13 @@ function PPU (screen, rom, mem) {
         0x000000,
         0x000000];
     
+    // Add a buffer to track background palette indices
+    var bgPaletteIndex = new Uint8Array(256 * 240);
+
     this.readStatus = function() {
         var result = status;
-        // Clear VBlank flag when status is read
-        status &= 0x7F; // Clear bit 7 (VBlank flag)
+        // Clear VBlank flag (bit 7) and Sprite 0 Hit flag (bit 6) when status is read
+        status &= 0x3F; // Clear bits 7 and 6
         firstWrite = true;
         firstWriteScroll = true;
         return result;
@@ -139,17 +146,22 @@ function PPU (screen, rom, mem) {
     this.render = function() {
         // Clear image buffer
         image.fill(0);
+        // Clear background palette index buffer
+        bgPaletteIndex.fill(0);
         
         if(stallCpu > 0)
             stallCpu--;
 
         // Reset sprite 0 hit flag
         status &= 0xBF;
+        var sprite0HitSet = false;
         
         // Increment frame counter and set VBlank flag every frame
         frameCounter++;
         self.frameCounter = frameCounter;
         status |= 0x80; // Set VBlank flag every frame
+        vblankSetTime = frameCounter;
+        vblankCleared = false;
 
         // NMI request at VBlank if enabled
         if (ctrl & 0x80) {
@@ -183,13 +195,14 @@ function PPU (screen, rom, mem) {
                     for(var bit = 7; bit>=0; bit--){
                         var pixel = (lowByte&1) + ((highByte&1)<<1);
                         lowByte >>=1; highByte>>=1;
-                        
+                        var destRow = (8*row+i);
+                        var destCol = (8*col+bit);
+                        var index = 4*((destRow*256)+destCol)
+                        // Track palette index for sprite 0 hit detection
+                        bgPaletteIndex[destRow*256+destCol] = pixel;
                         // Only render non-transparent pixels
                         if(pixel != 0) {
                             var color = palette[pixel+(attr << 2)];
-                            var destRow = (8*row+i);
-                            var destCol = (8*col+bit);
-                            var index = 4*((destRow*256)+destCol)
                             image[index] = (color>>16)&0xFF;
                             image[index+1] = (color>>8)&0xFF;
                             image[index+2] = color&0xFF;
@@ -200,14 +213,10 @@ function PPU (screen, rom, mem) {
             }
             }
         }
-        
         // Render sprites using the dedicated function
-        self.renderSprites();
-        
+        self.renderSprites(sprite0HitSet, bgPaletteIndex);
         var context = screen.getContext('2d');
         context.putImageData(new ImageData(image, 256, 240),0,0);
-        
-
     }
 
     this.readOAM = function() {
@@ -215,83 +224,61 @@ function PPU (screen, rom, mem) {
     }
 
     // Render sprites (OAM)
-    this.renderSprites = function() {
+    this.renderSprites = function(sprite0HitSet, bgPaletteIndex) {
         // Check if sprites are enabled
         if (!(mask & 0x10)) {
-            return; // Don't log this anymore since we're testing
+            return;
         }
-        
-
-        
-        // Check if sprites are 8x8 or 8x16
         var spriteHeight = (ctrl & 0x20) ? 16 : 8;
-        
         for (var i = 0; i < 64; i++) {
             var spriteY = oam[i * 4] + 1;
             var spriteTile = oam[i * 4 + 1];
             var spriteAttr = oam[i * 4 + 2];
             var spriteX = oam[i * 4 + 3];
-            
-            // Skip if sprite is off-screen
             if (spriteY >= 240 || spriteY < 0) continue;
-            
-
-            
-
-            
             var flipX = (spriteAttr & 0x40) ? 1 : 0;
             var flipY = (spriteAttr & 0x80) ? 1 : 0;
             var priority = (spriteAttr & 0x20) ? 1 : 0;
             var paletteOffset = (spriteAttr & 0x03) << 2;
-            
-            // Calculate pattern table address
             var patternAddr;
             if (spriteHeight == 8) {
                 patternAddr = ((ctrl & 0x08) << 9) + (spriteTile << 4);
             } else {
-                // 8x16 sprites
                 patternAddr = ((spriteTile & 0x01) << 12) + ((spriteTile & 0xFE) << 4);
             }
-            
-            // Ensure pattern address is within CHR ROM bounds
             if (patternAddr >= chrSize) {
                 patternAddr = patternAddr % chrSize;
             }
-            
-            // Render sprite pixels
             for (var row = 0; row < spriteHeight; row++) {
                 var y = spriteY + row;
                 if (y < 0 || y >= 240) continue;
-                
                 var patternRow = flipY ? (spriteHeight - 1 - row) : row;
                 var lowByte = self.readF(patternAddr + patternRow);
                 var highByte = self.readF(patternAddr + patternRow + 8);
-                
                 for (var col = 0; col < 8; col++) {
                     var x = spriteX + col;
                     if (x < 0 || x >= 256) continue;
-                    
                     var patternCol = flipX ? (7 - col) : col;
                     var pixel = ((lowByte >> (7 - patternCol)) & 1) + 
                                (((highByte >> (7 - patternCol)) & 1) << 1);
-                    
-                    // Skip transparent pixels
                     if (pixel == 0) continue;
-                    
-                    // Check if background pixel is non-zero (sprite 0 hit)
+                    // Sprite 0 hit detection (only set once per frame)
+                    if (i == 0 && !sprite0HitSet && bgPaletteIndex[y*256+x] != 0) {
+                        status |= 0x40;
+                        sprite0HitSet = true;
+                    }
                     var bgIndex = 4 * ((y * 256) + x);
                     var bgR = image[bgIndex];
                     var bgG = image[bgIndex + 1];
                     var bgB = image[bgIndex + 2];
-                    
-                    // Sprite 0 hit detection
-                    if (i == 0 && bgR != 0 && bgG != 0 && bgB != 0) {
-                        status |= 0x40; // Set sprite 0 hit flag
-                    }
-                    
-                    // Background priority check
-                    if (priority == 0 || (bgR == 0 && bgG == 0 && bgB == 0)) {
-                        var color = palette[pixel + paletteOffset + 16]; // Sprite palettes start at index 16 (4 palettes * 4 colors)
+                    if (i == 0 && pixel != 0) {
+                        // Color sprite 0 pixels bright red for visual debug
+                        image[bgIndex] = 255;
+                        image[bgIndex + 1] = 0;
+                        image[bgIndex + 2] = 0;
+                        image[bgIndex + 3] = 255;
+                    } else if (priority == 0 || (bgR == 0 && bgG == 0 && bgB == 0)) {
+                        var color = palette[pixel + paletteOffset + 16];
                         image[bgIndex] = (color >> 16) & 0xFF;
                         image[bgIndex + 1] = (color >> 8) & 0xFF;
                         image[bgIndex + 2] = color & 0xFF;

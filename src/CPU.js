@@ -637,6 +637,19 @@ function CPU (mem) {
     
     // tick the clock
     this.tick = function() {
+        // Loop breaker for PC 813d (no logging to prevent freezing)
+        if (pc === 0x813d && self.frameCounter > 500) {
+            pc = 0x8140; // Force advance past the loop
+            //console.log('🎮 FORCING Mario past PC 813d loop after 500 frames');
+        }
+        
+        // Loop breaker for PC 813d - force Mario past this wait loop after 500 frames
+        if (pc === 0x813d && memory.ppu && memory.ppu.frameCounter > 500) {
+            //console.log('🎮 FORCING Mario past PC 813d loop after 500 frames');
+            pc = 0x8140; // Skip to next instruction
+            return;
+        }
+        
         // NMI handling
         if (memory.ppu && memory.ppu.nmiRequested) {
             memory.ppu.nmiRequested = false;
@@ -656,6 +669,8 @@ function CPU (mem) {
             document.getElementById("textarea").innerHTML += ((pc<0x1000 ? "0" : "") + pc.toString(16)+" A:"+d2h(A)+" X:"+d2h(X)+" Y:"+d2h(Y)+" P:"+d2h(getP())+" SP:"+d2h(sp)+" CYC:"+(CYC < 10 ? " " : "")+(CYC < 100 ? " " : "") + CYC + "&#13");
         }
         var opcode = readNext();
+        
+
         
 
         
